@@ -78,6 +78,20 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 
 En büyük takvim riski hafta 1 (PX4/Gazebo/gimbal ilk kez kuruluyor).
 
+**Teslim tarihleri:** hedef **20 Kasım**; yetişmeyen kısımlar için yedek **1 Aralık** (tam video kurgusu, gerçek dünya bölümü, ek analizler).
+
+**Ara kontroller** (tutmazsa sağdaki sadeleştirme uygulanır):
+
+| Tarih | Olmuş olmalı | Tutmazsa |
+|---|---|---|
+| 4 Kas | Drone kendi kodumuzla şerit uçuyor + canlı tespit çalışıyor | Canlı kısım sadeleşir (TensorRT yerine PyTorch) |
+| 11 Kas | Konumlandırma + birleştirme + ilk metrikler | COLMAP minimuma iner (yedek: pozlardan kuşbakışı harita) |
+| 14 Kas | **Özellik dondurma** | Bu tarihten sonra yeni özellik yok: sadece ölçüm uçuşları, video, README |
+
+**Kesme sırası:** gerçek dünya bölümü → eğik açı deneyi → hassasiyet analizinin kapsamı → COLMAP kalitesi. Çekirdek (uçuş + tespit + konum + ölçüm) kesilmez.
+
+**Demo videosu yol boyunca çekilir:** her çalışan adımda (ilk şerit uçuşu, ilk canlı tespit, ilk harita) OBS ile kısa kayıt alınır; son haftada montaj ve eksik bölümler kalır.
+
 ## 5. Ölçümler ve başarı çıtası
 
 ### Simülasyon (gerçek konumlar Gazebo'dan alınır)

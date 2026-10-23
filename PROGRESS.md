@@ -36,8 +36,13 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - Micro XRCE-DDS Agent + `~/px4_ws` içinde `px4_msgs` (`release/1.17`) → `ros2 topic list`'te `/fmu/out/...` görünmesi
 - GCS kontrolünün çözülmesi ve `commander takeoff` ile ilk kalkış/iniş
 
+**Takvim kararı**
+- Hedef 20 Kasım, yedek 1 Aralık. Ara kontroller 4 / 11 / 14 Kasım (14 Kasım özellik dondurma). Kesme sırası ve video planı CLAUDE.md §4'te.
+- Hafta 1 büyük ihtimalle hafta 2'ye taşacak (bugün sürücü + RAM sızıntısına zaman gitti).
+
 **Açık kararlar**
 - GCS kontrolü: QGroundControl mı, SITL parametresi mi?
+- Gerekirse hafta sonu tampon saatleri (Oğuz'un cevabı bekleniyor)
 - PX4 `GstCameraSystem` hatasını upstream'e issue olarak bildirmek (isteğe bağlı)
 
 ---
