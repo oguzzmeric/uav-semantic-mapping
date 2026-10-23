@@ -22,16 +22,21 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 
 ## 2. Ortam
 
-- Ubuntu 24.04, ROS 2 Jazzy (`/opt/ros/jazzy`), Gazebo Harmonic (kurulacak)
-- **PX4** SITL (sabit bir sürüm etiketine kilitlenir), ROS 2 bağlantısı: Micro XRCE-DDS + `px4_msgs` (PX4 sürümüyle birebir eşleşmeli)
-- GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 590, CUDA 13.1. CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
+- Ubuntu 24.04, ROS 2 Jazzy (`/opt/ros/jazzy`), Gazebo Harmonic (ROS vendor 8.10 + OSRF 8.15; bkz. tuzaklar)
+- **PX4 v1.17.0** SITL: `~/PX4-Autopilot`; Python bağımlılıkları `~/px4-venv`'de (sisteme kurulmadı). ROS 2 bağlantısı: Micro XRCE-DDS + `px4_msgs` dalı `release/1.17` (`~/px4_ws`, alt katman)
+- Simülasyonu başlatma: `source ~/px4-venv/bin/activate && cd ~/PX4-Autopilot && __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia make px4_sitl gz_x500_gimbal` (kapatma: PX4 terminalinde `Ctrl+C`; arayüzsüz: `HEADLESS=1`)
+- PX4'e uygulanan yamalar: `setup/px4_patches/` (yeni kurulumda `git -C ~/PX4-Autopilot apply <yama>`)
+- GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
 - Python: proje içinde `.venv`, **uv** ile yönetilir (kilit dosyası commit'lenir). `rclpy` sistem Python'unda olduğu için venv `--system-site-packages` ile oluşturulur (sistem paketleri okunur, sisteme paket kurulmaz).
 - Model ağırlığı: `models/teknofest_yolo11l_nadir.pt` (`.gitignore`'da, repoya girmez)
 - Referans (aynı ortamda çalıştığı kanıtlı): Ubuntu 24.04 + Jazzy + PX4 + Gazebo Harmonic → `Hayat373/autonomous-ai-rescue-drone`
 
 **Donanım kısıtları:** 4 GB VRAM nedeniyle canlı tespitte TensorRT fp16; Gazebo + YOLO aynı anda çalışırken VRAM ölçülür. YOLO11l ile ince ayar 4 GB'a sığmayabilir (backbone dondurma, küçük batch, tiling).
 
-**Bilinen tuzaklar:** `cv_bridge` (apt, NumPy 1.x) ile pip'ten gelen NumPy 2.x çakışabilir → NumPy sürümü sabitlenir ve test edilir. TensorRT'nin sürücü 590 / GTX 1650 ile uyumu kurulumda doğrulanır.
+**Bilinen tuzaklar:** `cv_bridge` (apt, NumPy 1.x) ile pip'ten gelen NumPy 2.x çakışabilir → NumPy sürümü sabitlenir ve test edilir. TensorRT'nin sürücü 595 / GTX 1650 ile uyumu kurulumda doğrulanır. Çekirdek güncellemesi NVIDIA modülünü bozabilir (2026-10-23'te oldu): `nvidia-smi` çalışmazsa önce çekirdek ↔ `linux-modules-nvidia-*` eşleşmesine bakılır.
+- **İki Gazebo:** ROS yüklü kabukta ROS vendor Gazebo'su (8.10), ROS'suz kabukta OSRF Gazebo'su (8.15) devreye girer. PX4 her zaman ROS yüklü normal terminalde derlenir ve çalıştırılır (`ros_gz_bridge` de 8.10'a göre derlenmiş).
+- **PX4 `GstCameraSystem` RAM sızıntısı:** eklenti açıkken gz sunucusu ~80 MB/s şişer ve sistem donar (`nvh264enc` sürücü 595 ile başlamıyor + eklentide kuyruk sınırı yok). Eklenti kapalı (`setup/px4_patches/0001-disable-gst-camera-plugin.patch`); kamera görüntüsü `ros_gz_bridge` ile alınır. PX4 yeniden klonlanırsa yama tekrar uygulanmalı.
+- **PX4 gimbal kamerası varsayılanı:** 1280×720, 30 Hz, HFOV 2,0 rad (~115°). Projenin kamera ayarı (çözünürlük, HFOV, hız) ayrıca belirlenecek.
 
 ## 3. Kapsam ve öncelik
 

@@ -4,6 +4,44 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-10-23 (öğleden sonra) — Kurulum: NVIDIA sürücüsü, PX4 v1.17.0, Gazebo Harmonic
+
+**Yapıldı**
+- NVIDIA sürücüsü onarıldı: otomatik güncelleme çekirdeği 7.0.0-38'e taşımış, NVIDIA modülü sadece 6.17 için vardı → `nvidia-driver-595-open` + `linux-modules-nvidia-595-open-generic-hwe-24.04` (Ubuntu 590 → 595 geçişi yapmış). Sonuç: sürücü 595.99.02, CUDA 13.2, PyTorch GPU'yu görüyor.
+- `~/.bashrc` temizlendi (var olmayan `~/ros2_ws` ve eski TurtleBot satırları). Yedek: `~/.bashrc.bak-2026-10-23`.
+- PX4 **v1.17.0** alt modüllerle `~/PX4-Autopilot` (2,8 GB). Eşleşen `px4_msgs` dalı: `release/1.17`.
+- PX4 Python bağımlılıkları ayrı venv'e: `~/px4-venv` (sistem Python'u temiz kaldı). `ubuntu.sh --no-nuttx` ile Gazebo Harmonic (OSRF, gz-sim 8.15) + ninja kuruldu.
+- `make px4_sitl gz_x500_gimbal` çalışıyor: Gazebo açılıyor, gimbal'lı drone görünüyor, `pxh>` geliyor.
+- **RAM sızıntısı bulundu ve giderildi:** PX4'ün `GstCameraSystem` eklentisi (kamera → H.264 → UDP video akışı). Kök neden: (1) Ubuntu 24.04 GStreamer'ındaki `nvh264enc` sürücü 595 ile başlamıyor ("Selected preset not supported"); (2) eklentinin `appsrc` girişinde boyut sınırı/hata kontrolü yok → her kare RAM'de birikiyor. Eklenti `server.config`'te kapatıldı; yama: `setup/px4_patches/0001-disable-gst-camera-plugin.patch`.
+
+**Ölçüldü**
+- Gazebo (arayüzlü, ilk çalıştırma): RTF %99,45; VRAM 685 MiB (sunucu 338 + arayüz 320 + Xorg 17); GPU %38.
+- Sızıntı testleri (arayüzsüz, gz sunucu RSS):
+
+  | Test | Kamera | GStreamer eklentisi | Sonuç |
+  |---|---|---|---|
+  | A | var | açık | +79 MB/s (1280×720×3 B × 30 fps ≈ 83 MB/s ile uyumlu) |
+  | B (`gz_x500`) | yok | açık | 0,22 GB sabit |
+  | C (NVIDIA yönlendirmesiz) | var | açık | +79 MB/s |
+  | D | var | kapalı | 1,18 GB sabit |
+  | E (kalıcı yama ile) | var | kapalı | 1,18 GB sabit, 40 s |
+- `gst-launch` testi: `nvh264enc` başarısız, `x264enc` çalışıyor.
+
+**Sorunlar / notlar**
+- Makinede iki Gazebo Harmonic var: ROS vendor (8.10, ROS yüklü kabukta) ve OSRF (8.15). PX4 ROS yüklü kabukta derlenip çalıştırıldığı için tutarlı olarak 8.10 kullanıyor.
+- PX4 gimbal kamerası varsayılanı: 1280×720, 30 Hz, HFOV 2,0 rad (~115°) — bizim 60° varsayımımızdan çok geniş; kendi kamera ayarımız yapılacak.
+- Preflight "No connection to the GCS" → arm edilemez; uçuştan önce QGC ya da SITL parametresiyle çözülecek.
+
+**Sıradaki adım**
+- Micro XRCE-DDS Agent + `~/px4_ws` içinde `px4_msgs` (`release/1.17`) → `ros2 topic list`'te `/fmu/out/...` görünmesi
+- GCS kontrolünün çözülmesi ve `commander takeoff` ile ilk kalkış/iniş
+
+**Açık kararlar**
+- GCS kontrolü: QGroundControl mı, SITL parametresi mi?
+- PX4 `GstCameraSystem` hatasını upstream'e issue olarak bildirmek (isteğe bağlı)
+
+---
+
 ## 2026-10-23 — Yön değişikliği ve teknoloji kararları
 
 **Yapıldı**
