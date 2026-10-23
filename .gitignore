@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Model weights (not redistributable, see README)
+models/
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Datasets and flight logs
+data/
+datasets/
+logs/
+runs/
+
+# COLMAP outputs
+colmap_ws/
+*.db
+
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Secrets
+.env
+*.key
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
