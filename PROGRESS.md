@@ -4,6 +4,32 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-10-26 — PX4 ↔ ROS 2 köprüsü, ilk kalkış, proje araç dosyası
+
+**Yapıldı**
+- Micro XRCE-DDS Agent v2.4.3 kaynaktan derlendi (`~/Micro-XRCE-DDS-Agent/build/MicroXRCEAgent`); `sudo make install` gerekmedi.
+- `px4_msgs` (`release/1.17`) `~/px4_ws`'de derlendi (3 dk 21 s). 235 güncel mesaj PX4 v1.17.0 tanımlarıyla birebir aynı (eksik 9 tanesi yalnızca eski `*V0` sürümleri).
+- Köprü uçtan uca çalışıyor: `ros2 topic list`'te `/fmu/in/*` ve `/fmu/out/*`; `vehicle_local_position_v1` okundu.
+- İlk kalkış/iniş (`commander takeoff`/`land`, pxh konsolundan).
+- Proje araç dosyası `4900_gz_usm_x500_gimbal` + `setup/px4_overlay.sh` (yamalar + link, idempotent; iki kez çalıştırılarak doğrulandı) + yama `0002` (araç dosyasını PX4 listesine kaydeder). Yeni make hedefi: `gz_usm_x500_gimbal`.
+
+**Ölçüldü / gözlendi**
+- Yerde: x/y/z ≈ 0,008 / 0,015 / 0,063 m; EKF belirsizliği eph 0,15 m, epv 0,17 m; heading 1,676 rad (~96°).
+- Kalkış sonrası: z = −2,48 m (NED, z aşağı → h = 2,48 m), x/y sapması < 5 cm.
+
+**Sorunlar ve çözümler**
+- "No connection to the GCS": `NAV_DLL_ACT` x500'de 2. `PX4_PARAM_NAV_DLL_ACT=0` işe yaramadı — kök neden: `param set` değer varsayılana (0) eşitse yazmıyor, sonra araç dosyasının `set-default 2`'si kazanıyor (`src/systemcmds/param/param.cpp` do_set). Çözüm: kendi araç dosyamızda `param set-default NAV_DLL_ACT 0`. Doğrulandı: temiz parametrelerle 0, kalkış engelsiz.
+- İlk denemede model bulunamadı (`usm_x500_gimbal/model.sdf`): PX4 model adını make hedefinden türetiyor; araç dosyasında `PX4_SIM_MODEL=gz_x500_gimbal` koşulsuz atandı.
+- Terminal penceresini kapatmak PX4/Gazebo'yu kapatmıyor; elle sonlandırıldı.
+
+**Sıradaki adım**
+- `ros/usm_mission` paketi + `offboard_hover` node'u (Claude yazar, açıklayarak): arm → offboard → 5 m → 10 s bekle → in. Doğrulama: pxh'ye komut yazmadan kalkış/iniş.
+
+**Açık kararlar**
+- Offboard arayüzü teknolojisi (bkz. sıradaki konuşma)
+
+---
+
 ## 2026-10-23 (öğleden sonra) — Kurulum: NVIDIA sürücüsü, PX4 v1.17.0, Gazebo Harmonic
 
 **Yapıldı**

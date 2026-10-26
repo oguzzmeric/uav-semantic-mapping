@@ -24,8 +24,12 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 
 - Ubuntu 24.04, ROS 2 Jazzy (`/opt/ros/jazzy`), Gazebo Harmonic (ROS vendor 8.10 + OSRF 8.15; bkz. tuzaklar)
 - **PX4 v1.17.0** SITL: `~/PX4-Autopilot`; Python bağımlılıkları `~/px4-venv`'de (sisteme kurulmadı). ROS 2 bağlantısı: Micro XRCE-DDS + `px4_msgs` dalı `release/1.17` (`~/px4_ws`, alt katman)
-- Simülasyonu başlatma: `source ~/px4-venv/bin/activate && cd ~/PX4-Autopilot && __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia make px4_sitl gz_x500_gimbal` (kapatma: PX4 terminalinde `Ctrl+C`; arayüzsüz: `HEADLESS=1`)
-- PX4'e uygulanan yamalar: `setup/px4_patches/` (yeni kurulumda `git -C ~/PX4-Autopilot apply <yama>`)
+- **Projenin araç dosyası:** `sim/px4/airframes/4900_gz_usm_x500_gimbal` (4019 x500_gimbal + simülasyon ayarları, ör. `NAV_DLL_ACT=0`). PX4'e link + yamalar: `setup/px4_overlay.sh` (tekrar çalıştırılabilir; yeni kurulumda bir kez çalıştırılır, sonra `make px4_sitl`). Yamalar: `setup/px4_patches/`.
+- **Çalıştırma (3 terminal, sonra tek launch dosyasına dönüşecek):**
+  1. Simülasyon: `source ~/px4-venv/bin/activate && cd ~/PX4-Autopilot && __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia make px4_sitl gz_usm_x500_gimbal` (arayüzsüz: `HEADLESS=1`)
+  2. Köprü: `~/Micro-XRCE-DDS-Agent/build/MicroXRCEAgent udp4 -p 8888` (v2.4.3, kaynaktan derlendi, sisteme kurulmadı)
+  3. ROS 2: `source ~/px4_ws/install/setup.bash` (`px4_msgs` `release/1.17`, mesajlar PX4 v1.17.0 ile birebir doğrulandı)
+  - Kapatma: her terminalde **`Ctrl+C`**. Pencereyi X ile kapatmak PX4/Gazebo'yu arka planda açık bırakır.
 - GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
 - Python: proje içinde `.venv`, **uv** ile yönetilir (kilit dosyası commit'lenir). `rclpy` sistem Python'unda olduğu için venv `--system-site-packages` ile oluşturulur (sistem paketleri okunur, sisteme paket kurulmaz).
 - Model ağırlığı: `models/teknofest_yolo11l_nadir.pt` (`.gitignore`'da, repoya girmez)
@@ -36,6 +40,9 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 **Bilinen tuzaklar:** `cv_bridge` (apt, NumPy 1.x) ile pip'ten gelen NumPy 2.x çakışabilir → NumPy sürümü sabitlenir ve test edilir. TensorRT'nin sürücü 595 / GTX 1650 ile uyumu kurulumda doğrulanır. Çekirdek güncellemesi NVIDIA modülünü bozabilir (2026-10-23'te oldu): `nvidia-smi` çalışmazsa önce çekirdek ↔ `linux-modules-nvidia-*` eşleşmesine bakılır.
 - **İki Gazebo:** ROS yüklü kabukta ROS vendor Gazebo'su (8.10), ROS'suz kabukta OSRF Gazebo'su (8.15) devreye girer. PX4 her zaman ROS yüklü normal terminalde derlenir ve çalıştırılır (`ros_gz_bridge` de 8.10'a göre derlenmiş).
 - **PX4 `GstCameraSystem` RAM sızıntısı:** eklenti açıkken gz sunucusu ~80 MB/s şişer ve sistem donar (`nvh264enc` sürücü 595 ile başlamıyor + eklentide kuyruk sınırı yok). Eklenti kapalı (`setup/px4_patches/0001-disable-gst-camera-plugin.patch`); kamera görüntüsü `ros_gz_bridge` ile alınır. PX4 yeniden klonlanırsa yama tekrar uygulanmalı.
+- **`PX4_PARAM_<ad>=<değer>` ortam değişkeni parametreyi yazılım varsayılanına döndüremez:** PX4'ün `param set`'i değer zaten eşitse hiçbir şey yazmaz; sonra araç dosyasındaki `set-default` kazanır (ör. `NAV_DLL_ACT`: 0 → 2). Simülasyon parametreleri bu yüzden araç dosyamızda `param set-default` ile verilir.
+- **Gazebo model adı make hedefinden türetilir** (`gz_<ad>` → `models/<ad>/model.sdf`). Araç dosyasında `PX4_SIM_MODEL` koşulsuz atanmalı (`:=` işe yaramaz, değişken zaten dolu gelir).
+- **PX4 topic adlarında sürüm eki olabilir:** ör. `/fmu/out/vehicle_local_position_v1`, `/fmu/out/vehicle_status_v1`. Konum/yönelim **NED** (z aşağı; havadayken z < 0, h = −z).
 - **PX4 gimbal kamerası varsayılanı:** 1280×720, 30 Hz, HFOV 2,0 rad (~115°). Projenin kamera ayarı (çözünürlük, HFOV, hız) ayrıca belirlenecek.
 
 ## 3. Kapsam ve öncelik
