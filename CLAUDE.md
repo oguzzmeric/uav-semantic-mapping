@@ -29,6 +29,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
   1. Simülasyon: `source ~/px4-venv/bin/activate && cd ~/PX4-Autopilot && __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia make px4_sitl gz_usm_x500_gimbal` (arayüzsüz: `HEADLESS=1`)
   2. Köprü: `~/Micro-XRCE-DDS-Agent/build/MicroXRCEAgent udp4 -p 8888` (v2.4.3, kaynaktan derlendi, sisteme kurulmadı)
   3. ROS 2: `source ~/px4_ws/install/setup.bash` (`px4_msgs` `release/1.17`, mesajlar PX4 v1.17.0 ile birebir doğrulandı)
+  - Projenin ROS paketlerini derleme (repo kökünde, `px4_ws` yüklüyken): `.venv/bin/python -m colcon build --base-paths ros --symlink-install`. colcon'u venv Python'uyla çalıştırmak node'ların ilk satırına venv Python'unu yazar; node'lar venv açık olmasa da `usm_core`'u (ve ileride torch'u) görür. Düz `colcon build` sistem Python'unu yazar ve `usm_core` import edilemez.
   - Kapatma: her terminalde **`Ctrl+C`**. Pencereyi X ile kapatmak PX4/Gazebo'yu arka planda açık bırakır.
 - GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
 - Python: proje içinde `.venv`, **uv** ile yönetilir (kilit dosyası commit'lenir). `rclpy` sistem Python'unda olduğu için venv `--system-site-packages` ile oluşturulur (sistem paketleri okunur, sisteme paket kurulmaz).

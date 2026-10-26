@@ -19,6 +19,7 @@ setup(
     entry_points={
         'console_scripts': [
             'offboard_hover = usm_mission.offboard_hover:main',
+            'survey_mission = usm_mission.survey_mission:main',
         ],
     },
 )
