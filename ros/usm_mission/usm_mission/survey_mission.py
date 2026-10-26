@@ -45,18 +45,36 @@ def off_nadir_deg(q) -> float:
 
 
 class MovingSetpoint:
-    """A setpoint sliding along a polyline at constant speed.
+    """A setpoint sliding along a polyline with a trapezoidal speed profile.
 
+    On every segment it speeds up at `accel`, cruises at `speed` and slows down so that it
+    stops exactly at the vertex: v = min(speed, v_prev + accel*dt, sqrt(2*accel*remaining)).
+    A jump from standstill to full speed made the vehicle fall behind, sprint to catch up
+    (9.3 m/s at 5 m/s) and tilt hard, which the gimbal could not fully follow.
     It stops at every vertex until the vehicle is within `accept_radius`, so each lane
     starts on its line rather than with the vehicle still cutting the previous corner.
     """
 
-    def __init__(self, points: list[Point], speed: float, accept_radius: float):
+    def __init__(self, points: list[Point], speed: float, accel: float, accept_radius: float):
         self.points = points
         self.speed = speed
+        self.accel = accel
         self.accept_radius = accept_radius
         self.segment = 0   # flying points[segment] -> points[segment + 1]
         self.along = 0.0   # distance of the setpoint from the segment start [m]
+        self.v = 0.0       # current setpoint speed [m/s]
+
+    def duration(self) -> float:
+        """Time [s] the setpoint needs for the whole path, not counting waits at vertices."""
+        total = 0.0
+        ramp = self.speed ** 2 / self.accel  # distance to reach cruise speed and stop again
+        for a, b in zip(self.points, self.points[1:]):
+            length = math.dist(a, b)
+            if length >= ramp:  # trapezoid: L/v cruising plus v/a lost to the two ramps
+                total += length / self.speed + self.speed / self.accel
+            else:  # triangle: never reaches cruise speed, peak sqrt(a*L)
+                total += 2.0 * math.sqrt(length / self.accel)
+        return total
 
     @property
     def finished(self) -> bool:
@@ -66,15 +84,18 @@ class MovingSetpoint:
         """Advance by dt [s]; returns (position, velocity feed-forward) in NED."""
         a, b = self.points[self.segment], self.points[self.segment + 1]
         length = math.dist(a, b)
-        self.along = min(self.along + self.speed * dt, length)
+        remaining = length - self.along
+        self.v = min(self.speed, self.v + self.accel * dt, math.sqrt(2.0 * self.accel * remaining))
+        self.along = min(self.along + self.v * dt, length)
         if self.along >= length:  # waiting at the vertex
             if math.dist(vehicle, b) < self.accept_radius:
                 self.segment += 1
                 self.along = 0.0
+                self.v = 0.0
             return b, (0.0, 0.0, 0.0)
         u = [(bi - ai) / length for ai, bi in zip(a, b)]
         position = tuple(ai + ui * self.along for ai, ui in zip(a, u))
-        return position, tuple(ui * self.speed for ui in u)
+        return position, tuple(ui * self.v for ui in u)
 
 
 class TrackStats:
@@ -112,6 +133,7 @@ class SurveyMission(Node):
         p = self.declare_parameter
         self.altitude = p('altitude', 30.0).value
         self.speed = p('speed', 5.0).value
+        self.accel = p('accel', 2.0).value  # setpoint acceleration [m/s^2]
         # Survey area [m], local NED relative to the take-off point
         area = Area(p('x_min', -30.0).value, p('x_max', 30.0).value,
                     p('y_min', -30.0).value, p('y_max', 30.0).value)
@@ -127,7 +149,8 @@ class SurveyMission(Node):
         self.get_logger().info(
             f'plan: {self.plan.n_lanes} lanes, spacing {self.plan.lane_spacing:.2f} m, '
             f'photo every {self.plan.photo_spacing:.2f} m, path {self.plan.path_length:.0f} m '
-            f'(~{self.plan.path_length / self.speed:.0f} s at {self.speed} m/s)')
+            f'(~{MovingSetpoint(self.plan.waypoints, self.speed, self.accel, 0.0).duration():.0f} s '
+            f'at {self.speed} m/s, {self.accel} m/s^2)')
 
         self.px4 = Px4Commander(self)
         self.status: VehicleStatus | None = None
@@ -149,7 +172,8 @@ class SurveyMission(Node):
         self.cross_track = TrackStats()  # horizontal distance from the lane line [m]
         self.height_error = TrackStats()  # |z - survey z| on lanes [m]
         self.lane_speed = TrackStats()  # horizontal speed on lanes [m/s]
-        self.tilt = TrackStats()  # gimbal off-nadir angle during the survey [deg]
+        self.tilt = TrackStats()  # gimbal off-nadir angle during the whole survey [deg]
+        self.lane_tilt = TrackStats()  # ... on lanes only, where the images are used [deg]
         self.times: dict[State, float] = {}
 
         self.state = State.WAIT_FOR_PX4
@@ -283,7 +307,8 @@ class SurveyMission(Node):
         z = hz - self.altitude
         # lawnmower plans relative to the take-off point; shift to local NED
         waypoints = [(hx + x, hy + y, z) for x, y, _ in self.plan.waypoints]
-        self.path = MovingSetpoint([self.target] + waypoints, self.speed, self.ACCEPT_RADIUS_M)
+        self.path = MovingSetpoint([self.target] + waypoints, self.speed, self.accel,
+                                   self.ACCEPT_RADIUS_M)
         self._enter(State.SURVEY)
 
     def _sample(self):
@@ -303,18 +328,21 @@ class SurveyMission(Node):
             self.cross_track.add(abs(dx * uy - dy * ux))
             self.height_error.add(abs(self.position.z - a[2]))
             self.lane_speed.add(math.hypot(self.position.vx, self.position.vy))
+            if self.gimbal_tilt is not None:
+                self.lane_tilt.add(self.gimbal_tilt)
 
     def _report(self):
         t = self.times
         survey_s = t.get(State.RETURN, math.nan) - t.get(State.SURVEY, math.nan)
         mission_s = t.get(State.DONE, self._now()) - t.get(State.CLIMB, math.nan)
         log = self.get_logger().info
-        log(f'survey time {survey_s:.1f} s (planned path at {self.speed} m/s: '
-            f'{self.plan.path_length / self.speed:.1f} s), mission time {mission_s:.1f} s')
+        log(f'survey time {survey_s:.1f} s (setpoint profile: {self.path.duration():.1f} s), '
+            f'mission time {mission_s:.1f} s')
         log(f'cross-track error [m]: {self.cross_track}')
         log(f'height error [m]: {self.height_error}')
         log(f'lane speed [m/s]: {self.lane_speed}')
         log(f'gimbal off-nadir [deg]: {self.tilt}')
+        log(f'gimbal off-nadir on lanes [deg]: {self.lane_tilt}')
 
     def _finish(self):
         self._enter(State.DONE)
