@@ -28,11 +28,15 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
   - Arayüzsüz (hover 5 s): offboard+arm kabulü 1,3 s; tırmanış 8,1 s (0,3 m toleransa); iniş komutundan disarm'a 11,2 s. PX4 logu: "Armed by external command" → "Takeoff detected" → "Landing detected" → "Disarmed by landing".
   - Arayüzlü (hover 10 s): kabul 1,3 s; tırmanış 8,2 s; iniş 11,1 s.
 
+- **Kamera kararı:** 1920×1080, HFOV 60°, 10 Hz (offline tiling'de insan ~25 px; PX4 varsayılanı 115° ile ~6 px olurdu). Kendi Gazebo modellerimiz `sim/gz_models/usm_gimbal` + `usm_x500_gimbal`; overlay betiği bunları da linkliyor; araç dosyası artık `usm_x500_gimbal`'i spawn ediyor.
+  - Arayüzsüz doğrulama: model `usm_x500_gimbal_0`, kamera 1920×1080, gz RSS 1,22 GB sabit, VRAM 400 MiB, GPU %18. Kare hızı `gz topic -e` ile ~6 Hz ölçüldü (araç darboğazı olabilir; ROS 2 tarafında `ros2 topic hz` ile tekrar ölçülecek).
+- Hata: bir test betiği, açık olan kullanıcı simülasyonunu fark etmeden ölçtü ve kapattı. Test betiklerine "PX4/Gazebo açıksa çalışma" koruması eklendi.
+
 **Sıradaki adım**
-- Şerit (lawnmower) rota: kamera ayarı (çözünürlük, HFOV) → rota hesabı (Oğuz, `usm_core`) → görev node'u waypoint'leri uçar → RTL.
+- Şerit (lawnmower) rota hesabı (Oğuz, `usm_core`) → görev node'u waypoint'leri uçar → RTL.
 
 **Açık kararlar**
-- Projenin kamera ayarı (PX4 varsayılanı 1280×720, HFOV 115°)
+- Kayıt stratejisi (1080p ham ~62 MB/s @10 Hz: JPEG mi, çekim noktalarında fotoğraf mı?)
 
 ---
 

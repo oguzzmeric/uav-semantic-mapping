@@ -43,7 +43,8 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **`PX4_PARAM_<ad>=<değer>` ortam değişkeni parametreyi yazılım varsayılanına döndüremez:** PX4'ün `param set`'i değer zaten eşitse hiçbir şey yazmaz; sonra araç dosyasındaki `set-default` kazanır (ör. `NAV_DLL_ACT`: 0 → 2). Simülasyon parametreleri bu yüzden araç dosyamızda `param set-default` ile verilir.
 - **Gazebo model adı make hedefinden türetilir** (`gz_<ad>` → `models/<ad>/model.sdf`). Araç dosyasında `PX4_SIM_MODEL` koşulsuz atanmalı (`:=` işe yaramaz, değişken zaten dolu gelir).
 - **PX4 topic adlarında sürüm eki olabilir:** ör. `/fmu/out/vehicle_local_position_v1`, `/fmu/out/vehicle_status_v1`. Konum/yönelim **NED** (z aşağı; havadayken z < 0, h = −z).
-- **PX4 gimbal kamerası varsayılanı:** 1280×720, 30 Hz, HFOV 2,0 rad (~115°). Projenin kamera ayarı (çözünürlük, HFOV, hız) ayrıca belirlenecek.
+- **Kamera:** PX4 varsayılanı 1280×720, 30 Hz, HFOV 2,0 rad (~115°; 30 m'de insan ~6 px, kullanılamaz). Projenin kamerası `sim/gz_models/usm_gimbal`: **1920×1080, HFOV 60° (1,0472 rad), 10 Hz** (30 m'de GSD 1,80 cm/px, insan ~25 px). Gazebo modeli `usm_x500_gimbal` (overlay ile PX4'ün model klasörüne linklenir).
+- **Test betikleri açık bir simülasyona dokunmamalı:** başlamadan önce PX4/Gazebo çalışıyor mu kontrol edilir (2026-10-26'da kontrolsüz bir test Oğuz'un açık simülasyonunu kapattı).
 
 ## 3. Kapsam ve öncelik
 
