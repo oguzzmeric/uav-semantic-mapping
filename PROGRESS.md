@@ -22,11 +22,17 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - İlk denemede model bulunamadı (`usm_x500_gimbal/model.sdf`): PX4 model adını make hedefinden türetiyor; araç dosyasında `PX4_SIM_MODEL=gz_x500_gimbal` koşulsuz atandı.
 - Terminal penceresini kapatmak PX4/Gazebo'yu kapatmıyor; elle sonlandırıldı.
 
+- **Offboard kararı:** Python + `px4_msgs` offboard (şimdi); 20 Kasım sonrası PX4 ROS 2 Interface Library (C++) ile taşınacak. İniş/eve dönüş PX4'ün kendi modlarıyla (`NAV_LAND`, `NAV_RETURN_TO_LAUNCH`).
+- `ros/usm_mission` paketi: `px4_io.py` (QoS, kalp atışı, setpoint, komutlar) + `offboard_hover.py` (durum makinesi: WAIT → STREAM → ENGAGE → CLIMB → HOVER → LAND → DONE). Repo kökünden `colcon build --base-paths ros --symlink-install`.
+- **İlk kendi kodumuzla uçuş** (pxh'ye komut yazmadan): arayüzsüz test + Oğuz'un arayüzlü çalıştırması.
+  - Arayüzsüz (hover 5 s): offboard+arm kabulü 1,3 s; tırmanış 8,1 s (0,3 m toleransa); iniş komutundan disarm'a 11,2 s. PX4 logu: "Armed by external command" → "Takeoff detected" → "Landing detected" → "Disarmed by landing".
+  - Arayüzlü (hover 10 s): kabul 1,3 s; tırmanış 8,2 s; iniş 11,1 s.
+
 **Sıradaki adım**
-- `ros/usm_mission` paketi + `offboard_hover` node'u (Claude yazar, açıklayarak): arm → offboard → 5 m → 10 s bekle → in. Doğrulama: pxh'ye komut yazmadan kalkış/iniş.
+- Şerit (lawnmower) rota: kamera ayarı (çözünürlük, HFOV) → rota hesabı (Oğuz, `usm_core`) → görev node'u waypoint'leri uçar → RTL.
 
 **Açık kararlar**
-- Offboard arayüzü teknolojisi (bkz. sıradaki konuşma)
+- Projenin kamera ayarı (PX4 varsayılanı 1280×720, HFOV 115°)
 
 ---
 
