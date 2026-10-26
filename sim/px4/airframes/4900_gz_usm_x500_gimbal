@@ -8,10 +8,10 @@
 # Linked into PX4 by setup/px4_overlay.sh.
 #
 
-# Spawn the stock x500_gimbal Gazebo model. Must be an unconditional assignment:
-# the make target already sets PX4_SIM_MODEL=gz_usm_x500_gimbal, and px4-rc.gzsim
-# (sourced after this file) spawns models/${PX4_SIM_MODEL#*gz_}/model.sdf.
-PX4_SIM_MODEL=gz_x500_gimbal
+# Spawn the project model (sim/gz_models/usm_x500_gimbal, linked by setup/px4_overlay.sh).
+# Assigned unconditionally on purpose: px4-rc.gzsim (sourced after this file) spawns
+# models/${PX4_SIM_MODEL#*gz_}/model.sdf, and the variable may already be set by make.
+PX4_SIM_MODEL=gz_usm_x500_gimbal
 
 . ${R}etc/init.d-posix/airframes/4019_gz_x500_gimbal
 
