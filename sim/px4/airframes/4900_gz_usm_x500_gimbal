@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# @name uav-semantic-mapping x500 gimbal (Gazebo)
+#
+# @type Quadrotor
+#
+# Project airframe: stock 4019_gz_x500_gimbal plus simulation-only overrides.
+# Linked into PX4 by setup/px4_overlay.sh.
+#
+
+# Spawn the stock x500_gimbal Gazebo model. Must be an unconditional assignment:
+# the make target already sets PX4_SIM_MODEL=gz_usm_x500_gimbal, and px4-rc.gzsim
+# (sourced after this file) spawns models/${PX4_SIM_MODEL#*gz_}/model.sdf.
+PX4_SIM_MODEL=gz_x500_gimbal
+
+. ${R}etc/init.d-posix/airframes/4019_gz_x500_gimbal
+
+# No GCS in the loop: arming must not require a MAVLink data link (simulation only).
+# Set here because PX4_PARAM_NAV_DLL_ACT=0 cannot do it: `param set` is a no-op when
+# the value already equals the firmware default (0), so 4001's set-default 2 wins.
+param set-default NAV_DLL_ACT 0
