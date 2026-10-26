@@ -4,6 +4,50 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-10-26 (akşam) — Şerit rota, ilk görev uçuşu, gimbal sabitleme
+
+**Yapıldı**
+- `usm_core/coverage.py` tamamlandı: `ground_footprint`, `gsd`, `lane_spacing`, `photo_spacing` (Oğuz), `_lane_positions` (Oğuz), `lawnmower` (Oğuz'un isteğiyle Claude). Kenar kuralı varsayılanı (ii): `edge_margin = Gw/2`, ilk/son şerit alan sınırında.
+- `tests/test_coverage.py`: 22 test yeşil (elle hesaplanmış değerler, testler koddan önce yazıldı). Float regresyon testi: `tan(45°)` = 0,9999999999999999 → `ceil(2.0000000000000004)` fazladan şerit ekliyordu; `ceil(x − 1e-9)` ile düzeltildi, test düzeltmesiz kırmızı / düzeltmeli yeşil doğrulandı.
+- Python ortamı: `uv` + `.venv` (`--system-site-packages`), pytest; ROS pytest eklentileri `addopts` ile kapalı.
+- ROS paketleri venv Python'uyla derleniyor: `.venv/bin/python -m colcon build --base-paths ros --symlink-install` → node'lar venv'i açmadan `usm_core`'u görüyor (temiz kabukta doğrulandı). CLAUDE.md'ye yazıldı.
+- `survey_mission` node'u: WAIT → STREAM → ENGAGE → CLIMB → POINT_GIMBAL → SURVEY → RETURN (PX4 RTL) → DONE. Hareketli setpoint (konum + hız ileri beslemesi), yaw sabit 0, gimbal −90° (ölçülen açı < 2° olana kadar bekler), görev sonunda takip karnesi.
+- `px4_io.py`: 7 parametreli `command()`, `gimbal_take_control()` (DO_GIMBAL_MANAGER_CONFIGURE), `gimbal_pitch_yaw()` (DO_GIMBAL_MANAGER_PITCHYAW, roll+pitch ufka kilitli), `position_setpoint(..., velocity)`.
+- Araç dosyası: `RTL_RETURN_ALT 30` (60 m'ye tırmanmadan döner; yüksekte uçarken o irtifada döner — `rtl_params.c` doğrulandı).
+- PX4 yaması `0003-gz-gimbal-roll-pitch-lock.patch`: Gazebo gimbal sürücüsü (`GZGimbal.cpp`) kilit bayraklarını yok sayıyordu (`//TODO handle device flags`); artık her döngüde araç roll/pitch'ini joint açısından çıkarıyor, döngü 5 Hz → 50 Hz.
+- Hareketli setpoint trapez hız profiline geçti (`accel` 2 m/s²): `v = min(v_max, v + a·dt, √(2·a·kalan))`.
+
+**Ölçüldü** (SITL, 60×60 m, h = 30 m, 5 m/s, %70/%80 örtüşme → 7 şerit, 10,0 m aralık, yol 586 m)
+
+| | Uçuş 1 | Uçuş 2: gimbal yaması | Uçuş 3: + trapez profil |
+|---|---|---|---|
+| Gimbal off-nadir ort / maks (tüm tarama) | 8,61° / 43,1° | 1,86° / 17,0° | 0,92° / 5,81° |
+| Gimbal off-nadir ort / maks (şeritte) | – | – | 0,61° / 3,41° |
+| Yan sapma ort / maks | 0,27 / 2,70 m | 0,26 / 2,47 m | 0,06 / 0,92 m |
+| Yükseklik hatası ort / maks | 0,02 / 0,19 m | 0,01 / 0,20 m | 0,01 / 0,05 m |
+| Şerit hızı ort / maks | 5,28 / 9,32 m/s | 5,28 / 9,29 m/s | 4,64 / 6,13 m/s |
+| Tarama süresi | 128,6 s (yol/hız 117,2) | 128,8 s | 171,3 s (profil 161,7) |
+| Görev süresi (kalkış → disarm) | 190,5 s | 190,7 s | 230,8 s |
+
+- Gimbal nadire geliş: ~1 s; havada dururken ölçülen sapma 0,95–1,63° (joint sarkması olabilir; konumlandırmada ölçülen açı kullanılacağı için sapma kaynağı değil).
+- Ara deneme (`MNT_DO_STAB 1`): 8,61° / 43,12° — etkisiz.
+
+**Sorunlar ve çözümler**
+- `MNT_DO_STAB` hipotezi yanlıştı: bu parametre yalnızca AUX/MAVLink v1 çıkışında PX4'ün kendi telafisini açıyor; x500_gimbal'ın MAVLink v2 çıkışında PX4 sabitlemeyi cihaza bırakıyor, Gazebo sürücüsü ise yapmıyordu. AUX'a geçmek ölçülen gimbal açısının yayınını kesiyordu (`MNT_MODE_OUT == 2` şartı) → sürücü yamalandı.
+- Köşelerde 9,3 m/s "yetişme koşusu": setpoint duruştan anında 5 m/s'ye geçiyordu → trapez profil.
+- `pytest.approx` iç içe tuple listelerinde toleransı uygulamıyor → testlerde nokta nokta karşılaştırma (`assert_waypoints_close`).
+- Hata (Claude): plan satırını görmek için node'u, açık simülasyonu kontrol etmeden 4 s çalıştırdı; node PX4'ü OFFBOARD'a aldı ve muhtemelen arm etti. Drone yerde ve disarm kaldı. Kural tekrar: node/betik çalıştırmadan önce PX4 açık mı kontrol edilir.
+
+**Sıradaki adım**
+- Hafta 1'in kalanı: kamera görüntüsünü `ros_gz_bridge` ile ROS'a almak, kare hızını `ros2 topic hz` ile ölçmek, rosbag2 (MCAP) kaydı (görüntü + EKF2 pozu + gimbal açısı + Gazebo gerçek pozları), dışa aktarma betiği. Ardından düz köy dünyası.
+- `survey_mission.py`'yi birlikte okuma oturumu (Oğuz'un mülakatta anlatabilmesi için).
+
+**Açık kararlar**
+- Kayıt stratejisi (1080p ham ~62 MB/s @10 Hz: JPEG mi, çekim noktalarında fotoğraf mı?)
+- Yama 0003'ü PX4'e upstream PR olarak göndermek (isteğe bağlı; GstCameraSystem issue'su ile birlikte)
+
+---
+
 ## 2026-10-26 — PX4 ↔ ROS 2 köprüsü, ilk kalkış, proje araç dosyası
 
 **Yapıldı**
