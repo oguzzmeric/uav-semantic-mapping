@@ -1,0 +1,71 @@
+diff --git a/src/modules/simulation/gz_bridge/GZGimbal.cpp b/src/modules/simulation/gz_bridge/GZGimbal.cpp
+index 4fbccc316f..66fc220b31 100644
+--- a/src/modules/simulation/gz_bridge/GZGimbal.cpp
++++ b/src/modules/simulation/gz_bridge/GZGimbal.cpp
+@@ -53,7 +53,7 @@ bool GZGimbal::init(const std::string &world_name, const std::string &model_name
+ 
+ 	updateParameters();
+ 
+-	ScheduleOnInterval(200_ms); // @5Hz
++	ScheduleOnInterval(20_ms); // @50Hz, fast enough to follow the vehicle tilt when stabilizing
+ 
+ 	// Schedule on vehicle command messages
+ 	if (!_vehicle_command_sub.registerCallback()) {
+@@ -73,10 +73,33 @@ void GZGimbal::Run()
+ 
+ 	updateParameters();
+ 
+-	if (pollSetpoint()) {
+-		//TODO handle device flags
+-		publishJointCommand(_gimbal_roll_cmd_publisher, _roll_stp, _roll_rate_stp, _last_roll_stp, _roll_min, _roll_max, dt);
+-		publishJointCommand(_gimbal_pitch_cmd_publisher, _pitch_stp, _pitch_rate_stp, _last_pitch_stp, _pitch_min, _pitch_max,
++	const bool new_setpoint = pollSetpoint();
++
++	// Roll/pitch lock: the setpoint is relative to the horizon but the joints move relative to
++	// the body, so subtract the vehicle tilt, on every cycle since the vehicle keeps tilting
++	// (first order, like OutputBase::_calculate_angle_output does for AUX gimbals).
++	const bool roll_lock = _gimbal_device_flags & gimbal_device_set_attitude_s::GIMBAL_DEVICE_FLAGS_ROLL_LOCK;
++	const bool pitch_lock = _gimbal_device_flags & gimbal_device_set_attitude_s::GIMBAL_DEVICE_FLAGS_PITCH_LOCK;
++
++	if (new_setpoint || roll_lock || pitch_lock) {
++		float roll_stp = _roll_stp;
++		float pitch_stp = _pitch_stp;
++		vehicle_attitude_s vehicle_attitude;
++
++		if ((roll_lock || pitch_lock) && _vehicle_attitude_sub.copy(&vehicle_attitude)) {
++			const matrix::Eulerf euler_vehicle(matrix::Quatf(vehicle_attitude.q));
++
++			if (roll_lock) {
++				roll_stp -= euler_vehicle.phi();
++			}
++
++			if (pitch_lock) {
++				pitch_stp -= euler_vehicle.theta();
++			}
++		}
++
++		publishJointCommand(_gimbal_roll_cmd_publisher, roll_stp, _roll_rate_stp, _last_roll_stp, _roll_min, _roll_max, dt);
++		publishJointCommand(_gimbal_pitch_cmd_publisher, pitch_stp, _pitch_rate_stp, _last_pitch_stp, _pitch_min, _pitch_max,
+ 				    dt);
+ 		publishJointCommand(_gimbal_yaw_cmd_publisher, _yaw_stp, _yaw_rate_stp, _last_yaw_stp, _yaw_min, _yaw_max, dt);
+ 	}
+diff --git a/src/modules/simulation/gz_bridge/GZGimbal.hpp b/src/modules/simulation/gz_bridge/GZGimbal.hpp
+index 897c43150f..fd17d8ad52 100644
+--- a/src/modules/simulation/gz_bridge/GZGimbal.hpp
++++ b/src/modules/simulation/gz_bridge/GZGimbal.hpp
+@@ -10,6 +10,7 @@
+ #include <uORB/topics/vehicle_command_ack.h>
+ #include <uORB/topics/gimbal_controls.h>
+ #include <uORB/topics/parameter_update.h>
++#include <uORB/topics/vehicle_attitude.h>
+ #include <uORB/Publication.hpp>
+ #include <uORB/Subscription.hpp>
+ #include <uORB/SubscriptionCallback.hpp>
+@@ -41,6 +42,7 @@ private:
+ 
+ 	uORB::Subscription _gimbal_device_set_attitude_sub{ORB_ID(gimbal_device_set_attitude)};
+ 	uORB::Subscription _gimbal_controls_sub{ORB_ID(gimbal_controls)};
++	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+ 	uORB::SubscriptionCallbackWorkItem _vehicle_command_sub{this, ORB_ID(vehicle_command)};
+ 
+ 	uORB::Publication<gimbal_device_attitude_status_s> _gimbal_device_attitude_status_pub{ORB_ID(gimbal_device_attitude_status)};
