@@ -1,0 +1,26 @@
+[project]
+name = "uav-semantic-mapping"
+version = "0.1.0"
+description = "Autonomous UAV semantic mapping: detection, geolocation and mapping of people and vehicles."
+license = "AGPL-3.0-only"
+requires-python = ">=3.12,<3.13"  # ROS 2 Jazzy's system Python
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["usm_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The venv sees ROS 2's system packages (for rclpy); their pytest plugins are not needed
+# by the ROS-independent core tests and launch_testing's hooks break on pytest >= 9.
+addopts = """
+    -p no:launch_testing -p no:launch_ros -p no:ament_lint -p no:ament_flake8
+    -p no:ament_pep257 -p no:ament_copyright -p no:ament_xmllint
+    -p no:colcon_core_warnings_stderr"""
