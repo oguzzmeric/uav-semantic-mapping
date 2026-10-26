@@ -9,6 +9,7 @@ Frames and conventions:
 """
 from dataclasses import dataclass
 import math
+from turtle import width
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,18 @@ def photo_spacing(cam: Camera, altitude: float, front_overlap: float) -> float:
     return depth * (1 - front_overlap)
 
 
+def _lane_positions(lo: float, hi: float, footprint: float,
+                    max_spacing: float) -> tuple[list[float], float]:
+    """Evenly spaced lane centres in [lo, hi] keeping the footprint inside."""
+    room = hi - lo
+    if room <= footprint:
+        return [(lo + hi) / 2.0], 0.0
+    n = math.ceil((room - footprint) / max_spacing - 1e-9) + 1
+    spacing = (room - footprint) / (n - 1)
+    positions = [lo + footprint / 2.0 + i * spacing for i in range(n)]
+    return positions, spacing
+
+
 def lawnmower(area: Area, cam: Camera, altitude: float, side_overlap: float,
               front_overlap: float, edge_margin: float | None = None) -> SurveyPlan:
     """Plan a lawnmower survey over `area`.
@@ -87,4 +100,34 @@ def lawnmower(area: Area, cam: Camera, altitude: float, side_overlap: float,
     Raises ValueError for altitude <= 0, overlaps outside [0, 1), an empty area or a
     negative edge_margin.
     """
-    raise NotImplementedError
+    if area.x_max <= area.x_min or area.y_max <= area.y_min:
+        raise ValueError(f'area must be non-empty, got {area}')
+    width, depth = ground_footprint(cam, altitude)  # also rejects altitude <= 0
+    if edge_margin is None:
+        edge_margin = width / 2.0
+    if edge_margin < 0:
+        raise ValueError(f'edge_margin must be non-negative, got {edge_margin}')
+    max_lane_spacing = lane_spacing(cam, altitude, side_overlap)
+    photo_step = photo_spacing(cam, altitude, front_overlap)
+
+    # grown area
+    x_lo, x_hi = area.x_min - edge_margin, area.x_max + edge_margin
+    y_lo, y_hi = area.y_min - edge_margin, area.y_max + edge_margin
+
+    # lanes are stacked along y: across-track the image covers its width
+    lane_ys, actual_spacing = _lane_positions(y_lo, y_hi, width, max_lane_spacing)
+
+    # lane ends along x: along-track the image covers its depth
+    x_start, x_end = x_lo + depth / 2.0, x_hi - depth / 2.0
+    if x_start > x_end:  # area shorter than the footprint depth
+        x_start = x_end = (x_lo + x_hi) / 2.0
+
+    waypoints = []
+    for i, y in enumerate(lane_ys):
+        a, b = (x_start, x_end) if i % 2 == 0 else (x_end, x_start)
+        waypoints += [(a, y, -altitude), (b, y, -altitude)]
+    path_length = sum(math.dist(p, q) for p, q in zip(waypoints, waypoints[1:]))
+
+    return SurveyPlan(waypoints=waypoints, n_lanes=len(lane_ys),
+                      lane_spacing=actual_spacing, photo_spacing=photo_step,
+                      path_length=path_length)

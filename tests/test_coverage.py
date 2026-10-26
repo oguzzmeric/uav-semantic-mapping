@@ -22,6 +22,13 @@ GH = 19.485572
 TOL = 1e-4
 
 
+def assert_waypoints_close(got, want):
+    # pytest.approx does not apply its tolerance inside nested tuples, so compare per point
+    assert len(got) == len(want)
+    for g, w in zip(got, want):
+        assert g == pytest.approx(w, abs=TOL)
+
+
 # --- footprint, GSD, spacings ---------------------------------------------------------
 
 def test_footprint_reference_camera():
@@ -101,9 +108,7 @@ def test_rule_i_waypoints_in_flight_order():
         (lo, 34.226497, -H), (hi, 34.226497, -H),  # lane 2: northbound
         (hi, 42.679492, -H), (lo, 42.679492, -H),  # lane 3: southbound
     ]
-    assert len(plan.waypoints) == len(expected)
-    for got, want in zip(plan.waypoints, expected):
-        assert got == pytest.approx(want, abs=TOL)
+    assert_waypoints_close(plan.waypoints, expected)
 
 
 # --- lawnmower: rule (ii), default edge_margin = Gw/2 --------------------------------
@@ -117,7 +122,7 @@ def test_rule_i_waypoints_in_flight_order():
 def test_rule_ii_is_the_default():
     default = lawnmower(AREA_60, CAM, H, 0.7, 0.8)
     explicit = lawnmower(AREA_60, CAM, H, 0.7, 0.8, edge_margin=GW / 2)
-    assert default.waypoints == pytest.approx(explicit.waypoints, abs=TOL)
+    assert_waypoints_close(default.waypoints, explicit.waypoints)
 
 
 def test_rule_ii_lanes_on_area_boundary():
@@ -138,8 +143,7 @@ def test_area_narrower_than_footprint_gives_one_central_lane():
     plan = lawnmower(narrow, CAM, H, 0.7, 0.8, edge_margin=0.0)
     assert plan.n_lanes == 1
     assert plan.lane_spacing == 0.0
-    assert plan.waypoints == pytest.approx([(9.742786, 10.0, -H), (50.257214, 10.0, -H)],
-                                           abs=TOL)
+    assert_waypoints_close(plan.waypoints, [(9.742786, 10.0, -H), (50.257214, 10.0, -H)])
     assert plan.path_length == pytest.approx(40.514428, abs=TOL)
 
 
@@ -149,6 +153,18 @@ def test_area_shorter_than_footprint_puts_lane_ends_in_the_middle():
     assert plan.n_lanes == 4
     assert all(wp[0] == pytest.approx(5.0, abs=TOL) for wp in plan.waypoints)
     assert plan.path_length == pytest.approx(3 * 8.452995, abs=1e-3)
+
+
+def test_exact_lane_count_is_not_rounded_up_by_float_noise():
+    # 90 deg HFOV at 10 m: Gw = 20, side 50 % -> max spacing 10. On a 40 m area the
+    # room is 40 - 20 = 20 = exactly 2 gaps -> 3 lanes. tan(45 deg) is 0.9999999999999999
+    # in floating point, so the ratio comes out as 2.0000000000000004 and a bare ceil()
+    # adds a needless 4th lane.
+    cam = Camera(1000, 500, math.radians(90))
+    plan = lawnmower(Area(0.0, 40.0, 0.0, 40.0), cam, 10.0, 0.5, 0.5, edge_margin=0.0)
+    assert plan.n_lanes == 3
+    assert plan.lane_spacing == pytest.approx(10.0, abs=TOL)
+    assert plan.path_length == pytest.approx(110.0, abs=TOL)  # 3 * 30 + 2 * 10
 
 
 # --- lawnmower: invariants on a realistic mission ------------------------------------
