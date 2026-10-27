@@ -37,8 +37,10 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - **Doğrulandı:** araç dosyasına `EKF2_GPS_DELAY 0` (tek değişiklik, commit `5f0088c`), aynı uçuş + aynı betik (8746 örnek): yatay medyan 0,50 → **0,075 m**, p95/maks 0,67/0,73 → 0,14/0,24 m, kuzey std 0,43 → 0,038 m, en iyi kayma +100 → **0 ms**, kaymasız RMS 0,464 → 0,083 m. Görev karnesi değişmedi (gimbal şeritte 0,64° / 2,80°, yan sapma 0,07 m, tarama 174,6 s).
 - Kalan gözlemler: taramada **yaw std 2,2°** (ort. +0,40°) — nadirde görüntü kenarında (~17 m) ~0,6 m'lik kayma demek; gerçek EKF2 hatası mı, gerçek-yaw çıkarma formülüm mü, ayrıca bakılacak. Yerde yaw farkı tekrar ~12° (pusula sapması olabilir; havada kayboluyor).
 
+- **Yaw incelemesi** (aynı kayıt, `vehicle_attitude` quaternion'undan yaw ↔ gerçek, offboard'dan itibaren 10 s'lik dilimler): 0–10 s +15,7° (maks 38,9°; drone 90° → 0° dönüyor), 10–20 s +12,2° (maks 16,2°), 20–30 s −4,0° (maks 8,1°), 30–100 s ~+1° (maks ≤ 2,1°), 100 s sonrası ~0,2° (maks ≤ 0,8°). Yani 2,2°'lik saçılma **uçuş başındaki gerçek EKF2 yön hatası**: yerde pusulayla ~12° yanlış başlıyor, hareketle (GPS hızı) 30–100 s'de oturuyor; drone bu sürede gerçekten ~10° yanlış yöne bakıyor. Tarama offboard'dan ~17 s sonra başladığı için **ilk şerit bu hatayla uçuluyor** (12° → görüntü kenarında ~3,5 m konum hatası).
+
 **Sıradaki adım**
-- Yaw saçılmasını incelemek (2,2°): zamana göre çizip dönüşlerle ilişkisine bakmak; gerçek yaw'ı quaternion'dan doğru çıkardığımı doğrulamak.
+- Yön hatası: (a) kök neden — Gazebo manyetik alanı ile PX4 dünya manyetik modeli (sapma) uyuşmazlığı mı? (b) görevde "yön oturdu" kapısı (EKF yaw belirsizliği eşiğin altına inene kadar bekle / kısa ısınma manevrası). Muhtemelen ikisi.
 - Karşılaştırma betiğini scratchpad'den repoya almak (değerlendirme aracı olarak).
 - Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
 - Düz köy dünyası (dokulu zemin, insan + araç modelleri) → kayıt biçimi ölçümü (zstd vs JPEG).
