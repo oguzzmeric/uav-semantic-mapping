@@ -23,3 +23,10 @@ param set-default NAV_DLL_ACT 0
 # Return at survey altitude instead of climbing to the 60 m default first. RTL never
 # descends to this value: from a higher survey it returns at the current altitude.
 param set-default RTL_RETURN_ALT 30
+
+# Publish PX4 timestamps in simulation time. In SITL PX4's clock is Gazebo's sim clock
+# (GZBridge::clockCallback), the same clock that stamps the camera images; the default
+# (1) shifts outgoing timestamps to the agent's wall clock, so images and poses could not
+# be paired. Incoming setpoints stay valid: their timestamps are clamped to PX4's now.
+# Simulation only: on a real vehicle the sync is what aligns PX4 with the companion.
+param set-default UXRCE_DDS_SYNCT 0
