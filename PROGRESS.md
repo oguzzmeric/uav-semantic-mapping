@@ -4,6 +4,37 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-10-27 — Kamera köprüsü, saat eşitleme, ilk kayıtlı görev
+
+**Yapıldı**
+- Kamera `ros_gz_bridge` ile ROS'a alındı: `/camera/image`, `/camera/camera_info`; ayrıca `/clock` ve Gazebo model pozları (`/gz/dynamic_pose`).
+- `ros/usm_mission/launch/record.launch.py`: köprü + `ros2 bag record` (MCAP, kayıpsız `zstd_fast`), kayıt `data/bags/<tarih_saat>/` (gitignore'da). Argümanlar: `world`, `out`. Repo kökünden çalıştırılır.
+- Araç dosyası: `UXRCE_DDS_SYNCT 0` → PX4 damgaları simülasyon saatinde (commit `faba8f2`).
+- İlk kayıtlı görev uçuşu (Oğuz'un arayüzlü simülasyonu, 4 terminal).
+
+**Ölçüldü**
+- Kamera: `ros2 topic hz` 5,7 Hz gösterdi ama rosbag2 (C++) 11,57 s'de 115 kare = **9,94 Hz**. Darboğaz Python ölçüm aracı (6 MB/kare); geçen haftaki ~6 Hz ölçümü de büyük ihtimalle aynı sebepten. Render NVIDIA'da (400 MiB, %18), RTF 0,99.
+- Ham kayıt 59 MB/s (5,94 MB/kare = 1920×1080×3). Boş dünyada zstd 683 MB → 1,8 MB (~380×) ve JPEG q95 kare başına 48 KB — **anlamsız**: kare gökyüzü + gri zemin, 43 farklı renk. Biçim kararı dokulu dünyada ölçülerek verilecek.
+- Saatler: varsayılan ayarda kamera 250,9 s (sim), PX4 1 793 108 608 s (Unix) → eşlenemez. Kök neden: `UXRCE_DDS_SYNCT=1` PX4 damgalarını Agent'ın duvar saatine çeviriyor; SITL'de PX4 saati zaten Gazebo saati (`GZBridge::clockCallback`). Kapatınca: kamera 28,700 / gimbal 28,704 / konum 28,740 s; varışta gz saati − PX4 damgası medyan 4 ms, maks 8 ms (197 örnek). Gelen setpoint damgaları `min(damga, şimdi)` ile kırpıldığı için offboard bozulmadı (hover testi).
+- Kayıtlı görev (`data/bags/20261027_170055`, 421 s, 75 MB): 4185 kare, sim saatinde **10,00 Hz**, en büyük kare aralığı 100 ms (kare kaybı yok). Uçuştaki 1878 kareye en yakın örnek: EKF2 konumu maks **4 ms**, araç yönelimi maks 4 ms, gimbal medyan 4 / maks 24 ms.
+- Görev karnesi uçuş 3 ile neredeyse aynı (tekrarlanabilir): gimbal şeritte 0,61° / 3,38°, yan sapma 0,07 / 0,93 m, tarama 171,4 s.
+
+**Sorunlar**
+- `/gz/dynamic_pose` kullanılamaz: köprünün `Pose_V → TFMessage` dönüşümü model adlarını ve damgaları düşürüyor (ad boş, damga 0; sadece sıra kalıyor). Gerçek pozlar için damgalı başka bir kaynak gerekli.
+- Kendi başlatma/kapatma betiklerim: `set -u` ROS kurulum betiğini bozdu; Agent `INT` ile kapanmıyor (`TERM` gerekli); kapatma betiği bir kez yarıda kaldı, süreçler PID ile kapatıldı (önce `HEADLESS=1` ile benim olduğu doğrulandı).
+- `data/bags/20261027_165543` (5,1 MB): kayıt launch'ının kısa ilk denemesi, kullanılmayacak.
+
+**Sıradaki adım**
+- Gerçek pozlar için damgalı kaynak (karar aşağıda), aynı uçuşu tekrar kaydedip EKF2 ↔ gerçek konum farkının ilk sayısı.
+- Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
+- Düz köy dünyası (dokulu zemin, insan + araç modelleri) → kayıt biçimi ölçümü (zstd vs JPEG).
+
+**Açık kararlar**
+- Gerçek poz kaynağı: (a) model SDF'ine Gazebo `OdometryPublisher` eklentisi → damgalı `nav_msgs/Odometry`; (b) `Pose_V → geometry_msgs/PoseArray` köprüsü (tek damga, ad yok, sıraya güvenir); (c) Gazebo'nun `PosePublisher` eklentisi.
+- Kayıt biçimi (dokulu dünyada ölçümden sonra).
+
+---
+
 ## 2026-10-26 (akşam) — Şerit rota, ilk görev uçuşu, gimbal sabitleme
 
 **Yapıldı**
