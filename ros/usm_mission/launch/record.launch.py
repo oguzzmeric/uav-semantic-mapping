@@ -1,4 +1,4 @@
-"""Bridge the Gazebo camera and true poses into ROS 2 and record a survey to MCAP.
+"""Bridge the Gazebo camera and true vehicle pose into ROS 2 and record a survey to MCAP.
 
 Run from the repo root while the simulation and the XRCE agent are up; stop with Ctrl+C
 after landing:
@@ -25,9 +25,7 @@ PX4_TOPICS = [
 SIM_TOPICS = [
     '/camera/image',
     '/camera/camera_info',  # intrinsics
-    # True poses for evaluation. Known gap: the Pose_V -> TFMessage conversion drops the
-    # model names and stamps (only the order survives); to be replaced by a stamped source.
-    '/gz/dynamic_pose',
+    '/gz/odometry',         # true vehicle pose (ENU) and velocity, for evaluation only
     '/clock',
     '/rosout',              # mission log
 ]
@@ -37,7 +35,7 @@ def _bridge_and_record(context):
     world = LaunchConfiguration('world').perform(context)
     out = LaunchConfiguration('out').perform(context)
     camera = f'/world/{world}/model/{VEHICLE}/link/camera_link/sensor/camera'
-    poses = f'/world/{world}/dynamic_pose/info'
+    odometry = f'/model/{VEHICLE}/odometry'  # OdometryPublisher in usm_x500_gimbal
 
     bridge = Node(
         package='ros_gz_bridge',
@@ -46,13 +44,13 @@ def _bridge_and_record(context):
         arguments=[  # gz -> ROS only ('[')
             f'{camera}/image@sensor_msgs/msg/Image[gz.msgs.Image',
             f'{camera}/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            f'{poses}@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V',
+            f'{odometry}@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
         ],
         remappings=[
             (f'{camera}/image', '/camera/image'),
             (f'{camera}/camera_info', '/camera/camera_info'),
-            (poses, '/gz/dynamic_pose'),
+            (odometry, '/gz/odometry'),
         ],
         output='screen',
     )
