@@ -39,9 +39,18 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 - **Yaw incelemesi** (aynı kayıt, `vehicle_attitude` quaternion'undan yaw ↔ gerçek, offboard'dan itibaren 10 s'lik dilimler): 0–10 s +15,7° (maks 38,9°; drone 90° → 0° dönüyor), 10–20 s +12,2° (maks 16,2°), 20–30 s −4,0° (maks 8,1°), 30–100 s ~+1° (maks ≤ 2,1°), 100 s sonrası ~0,2° (maks ≤ 0,8°). Yani 2,2°'lik saçılma **uçuş başındaki gerçek EKF2 yön hatası**: yerde pusulayla ~12° yanlış başlıyor, hareketle (GPS hızı) 30–100 s'de oturuyor; drone bu sürede gerçekten ~10° yanlış yöne bakıyor. Tarama offboard'dan ~17 s sonra başladığı için **ilk şerit bu hatayla uçuluyor** (12° → görüntü kenarında ~3,5 m konum hatası).
 
+- **Yön hatası kök nedeni (devam oturumu):** PX4 uçuşta öğrendiği pusula sapmalarını kalıcı kaydetmiş (`CAL_MAG0_X/Y/ZOFF` = 0,0345 / 0,0296 / 0,1064 G, `parameters.bson`). Kanıt: kalibre ölçüm = ham − bu sapmalar (birebir); kalibre alan 0,408 G / eğim 52,2° (referans 0,482 G / 63,2°). Temiz kayıtla: sapmalar 0, alan 0,481 G / eğim 63,3°; yerde yön hatası 13,6° → ~6°.
+  - Çözüm: `setup/run_sim.sh` her açılışta PX4'ün kayıtlı parametrelerini siler (tekrarlanabilirlik de sağlar). CLAUDE.md Terminal 1 komutu buna çevrildi.
+  - Yanlış yollar (kayda geçsin): (1) Gazebo pusulasının sapmasını −2,63° hesapladım ve `EKF2_MAG_DECL` ile verdim → yerde 96,1° (daha kötü); işareti yanlış yorumlamışım, alan PX4'ün dünya modeliyle (+3,4°) ~0,6° içinde uyumlu. Geri alındı. (2) `EKF2_DECL_TYPE 0` "her zaman `EKF2_MAG_DECL` kullan" demiyor: kod (`Ekf::getMagDeclination`) bu değeri sadece bit 1 açıkken okuyor; 0'da sapma hiç uygulanmıyor (yerde 92,8°). Parametre açıklaması ile kod uyuşmuyor (upstream'e bildirilebilir).
+  - Yerde kalan ~6°: üç ayarda 92,8 / 96,1 / 95,9° — basit bir modelle açıklanamadı (muhtemelen GPS'ten önceki ilk hizalama); düşük öncelik.
+- **Havadaki etki (asıl ölçüt), temiz başlangıç, aynı görev:** offboard'dan 10–20 s: +9,5° (tırmanış + ilk şeride ~48 m geçiş); 20–30 s: −0,1° / maks 0,5° (önce −4,0° / 8,1°); sonrası ≤ 1,3°. **Sadece şeritte** (30 m, |vx| ≥ 2, |vy| < 0,5 m/s; 10 723 örnek): ort +0,04°, std 0,39°, p95 0,84°, **maks 1,25°** (bozuk kalibrasyonla: +0,46° / 0,57° / 1,47° / 1,97°). Konum: yatay medyan 0,067 m, maks 0,18 m.
+  - **Düzeltme:** yukarıdaki "ilk şerit bu hatayla uçuluyor (~3,5 m)" yorumu yanlıştı — büyük hata ilk şeride giden geçişte; geçişteki yatay hareket yönü oturtuyor, şeritlerde hata bozuk kalibrasyonla bile ≤ 2°'ydi. 10 s'lik dilimler şerit ile geçişi ayırmadığı için yanılmışım.
+  - "Yön oturdu" kapısı şimdilik gereksiz. Risk: kalkış noktası ilk şeride çok yakınsa geçiş kısalır → o zaman kapı (ısınma manevrası / EKF yaw belirsizliği eşiği).
+
 **Sıradaki adım**
-- Yön hatası: (a) kök neden — Gazebo manyetik alanı ile PX4 dünya manyetik modeli (sapma) uyuşmazlığı mı? (b) görevde "yön oturdu" kapısı (EKF yaw belirsizliği eşiğin altına inene kadar bekle / kısa ısınma manevrası). Muhtemelen ikisi.
-- Karşılaştırma betiğini scratchpad'den repoya almak (değerlendirme aracı olarak).
+- Karşılaştırma betiklerini (EKF ↔ gerçek konum, şeritte yaw) scratchpad'den repoya almak; değerlendirme aracı olarak.
+- Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
+- Düz köy dünyası (aynı coğrafi koordinatlar; dokulu zemin, insan + araç) → kayıt biçimi ölçümü.
 - Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
 - Düz köy dünyası (dokulu zemin, insan + araç modelleri) → kayıt biçimi ölçümü (zstd vs JPEG).
 
