@@ -26,7 +26,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **PX4 v1.17.0** SITL: `~/PX4-Autopilot`; Python bağımlılıkları `~/px4-venv`'de (sisteme kurulmadı). ROS 2 bağlantısı: Micro XRCE-DDS + `px4_msgs` dalı `release/1.17` (`~/px4_ws`, alt katman)
 - **Projenin araç dosyası:** `sim/px4/airframes/4900_gz_usm_x500_gimbal` (4019 x500_gimbal + simülasyon ayarları, ör. `NAV_DLL_ACT=0`). PX4'e link + yamalar: `setup/px4_overlay.sh` (tekrar çalıştırılabilir; yeni kurulumda bir kez çalıştırılır, sonra `make px4_sitl`). Yamalar: `setup/px4_patches/`.
 - **Çalıştırma (3 terminal, sonra tek launch dosyasına dönüşecek):**
-  1. Simülasyon: `source ~/px4-venv/bin/activate && cd ~/PX4-Autopilot && __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia make px4_sitl gz_usm_x500_gimbal` (arayüzsüz: `HEADLESS=1`)
+  1. Simülasyon: `~/uav-sar-geolocation/setup/run_sim.sh` (arayüzsüz: `setup/run_sim.sh HEADLESS=1`). PX4'ün kayıtlı parametrelerini silip `make px4_sitl gz_usm_x500_gimbal`'i NVIDIA'da başlatır; her deney araç dosyasındaki ayarlardan başlar.
   2. Köprü: `~/Micro-XRCE-DDS-Agent/build/MicroXRCEAgent udp4 -p 8888` (v2.4.3, kaynaktan derlendi, sisteme kurulmadı)
   3. ROS 2: `source ~/px4_ws/install/setup.bash` (`px4_msgs` `release/1.17`, mesajlar PX4 v1.17.0 ile birebir doğrulandı)
   - Projenin ROS paketlerini derleme (repo kökünde, `px4_ws` yüklüyken): `.venv/bin/python -m colcon build --base-paths ros --symlink-install`. colcon'u venv Python'uyla çalıştırmak node'ların ilk satırına venv Python'unu yazar; node'lar venv açık olmasa da `usm_core`'u (ve ileride torch'u) görür. Düz `colcon build` sistem Python'unu yazar ve `usm_core` import edilemez.
@@ -45,6 +45,10 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **Gazebo model adı make hedefinden türetilir** (`gz_<ad>` → `models/<ad>/model.sdf`). Araç dosyasında `PX4_SIM_MODEL` koşulsuz atanmalı (`:=` işe yaramaz, değişken zaten dolu gelir).
 - **PX4 topic adlarında sürüm eki olabilir:** ör. `/fmu/out/vehicle_local_position_v1`, `/fmu/out/vehicle_status_v1`. Konum/yönelim **NED** (z aşağı; havadayken z < 0, h = −z).
 - **Kamera:** PX4 varsayılanı 1280×720, 30 Hz, HFOV 2,0 rad (~115°; 30 m'de insan ~6 px, kullanılamaz). Projenin kamerası `sim/gz_models/usm_gimbal`: **1920×1080, HFOV 60° (1,0472 rad), 10 Hz** (30 m'de GSD 1,80 cm/px, insan ~25 px). Gazebo modeli `usm_x500_gimbal` (overlay ile PX4'ün model klasörüne linklenir).
+- **PX4 uçuşta öğrendiği parametreleri kalıcı kaydeder** (`build/px4_sitl_default/rootfs/parameters.bson`; ör. pusula sapmaları `CAL_MAG0_*OFF`, `EKF2_MAG_DECL`) ve sonraki açılışta yükler. 2026-10-27'de bozuk öğrenilmiş bir pusula kalibrasyonu yerde 13,6° yön hatasına yol açtı. Bu yüzden simülasyon hep `setup/run_sim.sh` ile açılır (kaydı siler); kalıcı ayarlar sadece araç dosyasında.
+- **PX4 zaman damgaları:** `UXRCE_DDS_SYNCT 0` (araç dosyası) ile PX4 mesajları simülasyon saatinde; kamera ve Gazebo odometrisi de sim saatinde. Görev node'u ise duvar saatini kullanıyor (`/rosout` damgaları sim saatiyle uyuşmaz).
+- **Büyük mesajlarda `ros2 topic hz` güvenilmez** (Python; 6 MB'lık 1080p karede 5,7 Hz gösterdi, gerçek 10,00 Hz). Kare hızı kayıttaki kare sayısından ölçülür.
+- **`pgrep -f <desen>` kendi kabuğunu da bulur** (desen komut satırında geçiyor) → süreçler `pgrep -x px4` gibi tam adla bulunur, kapatmadan önce `HEADLESS=1` ile benim simülasyonum olduğu doğrulanır.
 - **Test betikleri açık bir simülasyona dokunmamalı:** başlamadan önce PX4/Gazebo çalışıyor mu kontrol edilir (2026-10-26'da kontrolsüz bir test Oğuz'un açık simülasyonunu kapattı).
 
 ## 3. Kapsam ve öncelik
