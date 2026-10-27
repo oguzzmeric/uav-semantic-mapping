@@ -24,13 +24,23 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - Kendi başlatma/kapatma betiklerim: `set -u` ROS kurulum betiğini bozdu; Agent `INT` ile kapanmıyor (`TERM` gerekli); kapatma betiği bir kez yarıda kaldı, süreçler PID ile kapatıldı (önce `HEADLESS=1` ile benim olduğu doğrulandı).
 - `data/bags/20261027_165543` (5,1 MB): kayıt launch'ının kısa ilk denemesi, kullanılmayacak.
 
+**Ek saat: gerçek poz kaynağı ve ilk EKF2 ↔ gerçek konum ölçümü**
+- Karar: `OdometryPublisher` (seçenek a). `usm_x500_gimbal` modeline eklendi (dünya pozu ENU + hız, 50 Hz, sim saati); kayıtta `/gz/dynamic_pose` yerine `/gz/odometry` (commit `741d5df`).
+- Arayüzsüz görev kaydı (255 s, 31 MB, 2529 kare): odometri 12 643 mesaj, 49,6 Hz; yerde konum (0, 0, −0,013), çerçeveler `world` → `base_link`.
+- İlk karşılaştırma (scratchpad betiği; ENU → NED, gerçek poz EKF2 `timestamp_sample` anına doğrusal enterpolasyonla; tarama = OFFBOARD ve z ±0,5 m içinde, 8601 örnek):
+  - Yerde (ilk 3 s): yatay medyan 0,7 cm; aşağı −0,046 m; **yaw +10°** (başlangıçta yön oturmamış).
+  - Taramada: ortalama K +0,017 / D +0,033 / aşağı −0,059 m (sistematik ≈ 0), ama std K 0,43 / D 0,18 m, yatay **medyan 0,50 m**, p95 0,67 m.
+  - Zaman kayması taraması: gerçek poz +100 ms kaydırılınca yatay RMS **0,464 → 0,093 m** (−300…+300 ms, 20 ms adım). EKF2 gerçeğin ~100 ms önünde.
+  - Muhtemel kök neden: `EKF2_GPS_DELAY` varsayılanı 110 ms (`params_gnss.yaml`); PX4'ün kendi simülasyon araçları bunu düzeltiyor (SIH 0, gazebo-classic 10), gz araçları (4001/4019) düzeltmiyor; simüle GPS gecikmesiz.
+- Not: görev node'u duvar saatini kullanıyor → kayıttaki `/rosout` damgaları sim saatiyle uyuşmuyor (ölçümde pencere PX4 durumundan alındı). İleride `use_sim_time`.
+
 **Sıradaki adım**
-- Gerçek pozlar için damgalı kaynak (karar aşağıda), aynı uçuşu tekrar kaydedip EKF2 ↔ gerçek konum farkının ilk sayısı.
+- Tek değişiklik: araç dosyasına `EKF2_GPS_DELAY 0` → aynı kayıt + aynı betik. Beklenen: en iyi kayma ≈ 0 ms, kaymasız yatay RMS ≈ 0,1 m. Ayrıca yerdeki 10°'lik yaw farkını incelemek.
+- Karşılaştırma betiğini scratchpad'den repoya almak (değerlendirme aracı olarak).
 - Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
 - Düz köy dünyası (dokulu zemin, insan + araç modelleri) → kayıt biçimi ölçümü (zstd vs JPEG).
 
 **Açık kararlar**
-- Gerçek poz kaynağı: (a) model SDF'ine Gazebo `OdometryPublisher` eklentisi → damgalı `nav_msgs/Odometry`; (b) `Pose_V → geometry_msgs/PoseArray` köprüsü (tek damga, ad yok, sıraya güvenir); (c) Gazebo'nun `PosePublisher` eklentisi.
 - Kayıt biçimi (dokulu dünyada ölçümden sonra).
 
 ---
