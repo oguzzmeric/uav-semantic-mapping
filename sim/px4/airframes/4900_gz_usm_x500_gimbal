@@ -30,3 +30,7 @@ param set-default RTL_RETURN_ALT 30
 # be paired. Incoming setpoints stay valid: their timestamps are clamped to PX4's now.
 # Simulation only: on a real vehicle the sync is what aligns PX4 with the companion.
 param set-default UXRCE_DDS_SYNCT 0
+
+# The simulated GPS is not delayed, but EKF2 assumes the 110 ms of a real receiver and
+# so runs ahead of the truth (PX4's SIH airframes set 0 for the same reason).
+param set-default EKF2_GPS_DELAY 0
