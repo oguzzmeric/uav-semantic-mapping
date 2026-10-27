@@ -34,8 +34,11 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
   - Muhtemel kök neden: `EKF2_GPS_DELAY` varsayılanı 110 ms (`params_gnss.yaml`); PX4'ün kendi simülasyon araçları bunu düzeltiyor (SIH 0, gazebo-classic 10), gz araçları (4001/4019) düzeltmiyor; simüle GPS gecikmesiz.
 - Not: görev node'u duvar saatini kullanıyor → kayıttaki `/rosout` damgaları sim saatiyle uyuşmuyor (ölçümde pencere PX4 durumundan alındı). İleride `use_sim_time`.
 
+- **Doğrulandı:** araç dosyasına `EKF2_GPS_DELAY 0` (tek değişiklik, commit `5f0088c`), aynı uçuş + aynı betik (8746 örnek): yatay medyan 0,50 → **0,075 m**, p95/maks 0,67/0,73 → 0,14/0,24 m, kuzey std 0,43 → 0,038 m, en iyi kayma +100 → **0 ms**, kaymasız RMS 0,464 → 0,083 m. Görev karnesi değişmedi (gimbal şeritte 0,64° / 2,80°, yan sapma 0,07 m, tarama 174,6 s).
+- Kalan gözlemler: taramada **yaw std 2,2°** (ort. +0,40°) — nadirde görüntü kenarında (~17 m) ~0,6 m'lik kayma demek; gerçek EKF2 hatası mı, gerçek-yaw çıkarma formülüm mü, ayrıca bakılacak. Yerde yaw farkı tekrar ~12° (pusula sapması olabilir; havada kayboluyor).
+
 **Sıradaki adım**
-- Tek değişiklik: araç dosyasına `EKF2_GPS_DELAY 0` → aynı kayıt + aynı betik. Beklenen: en iyi kayma ≈ 0 ms, kaymasız yatay RMS ≈ 0,1 m. Ayrıca yerdeki 10°'lik yaw farkını incelemek.
+- Yaw saçılmasını incelemek (2,2°): zamana göre çizip dönüşlerle ilişkisine bakmak; gerçek yaw'ı quaternion'dan doğru çıkardığımı doğrulamak.
 - Karşılaştırma betiğini scratchpad'den repoya almak (değerlendirme aracı olarak).
 - Dışa aktarma betiği: her kare için görüntü + en yakın EKF2 pozu + yönelim + gimbal + gerçek poz → dosyalar.
 - Düz köy dünyası (dokulu zemin, insan + araç modelleri) → kayıt biçimi ölçümü (zstd vs JPEG).
