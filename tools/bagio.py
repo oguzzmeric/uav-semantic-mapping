@@ -11,6 +11,7 @@ from rclpy.serialization import deserialize_message
 from rosbag2_py import ConverterOptions, SequentialReader, StorageFilter, StorageOptions
 
 CAMERA_TOPIC = '/camera/image'
+CAMERA_JPEG_TOPIC = '/camera/image/compressed'
 CAMERA_INFO_TOPIC = '/camera/camera_info'
 TRUTH_TOPIC = '/gz/odometry'
 POSITION_TOPIC = '/fmu/out/vehicle_local_position_v1'
@@ -29,6 +30,12 @@ def read(bag: str, topic: str, msg_type):
     while reader.has_next():
         _, data, _ = reader.read_next()
         yield deserialize_message(data, msg_type)
+
+
+def topics(bag: str) -> set[str]:
+    reader = SequentialReader()
+    reader.open(StorageOptions(uri=bag, storage_id='mcap'), ConverterOptions('', ''))
+    return {t.name for t in reader.get_all_topics_and_types()}
 
 
 def header_time(msg) -> float:

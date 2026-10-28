@@ -5,7 +5,8 @@ Run with ROS and px4_msgs sourced:
     python3 tools/export_bag.py data/bags/<name> [--out data/export/<name>]
 
 Writes
-    images/000000.png ...  every camera frame, lossless
+    images/000000.jpg ...  every camera frame: the recorded JPEG bytes unchanged, or PNG
+                           for bags recorded raw (before the JPEG recording)
     frames.csv             one row per image, all values interpolated to the image stamp
     camera.json            intrinsics from camera_info
 
@@ -27,7 +28,7 @@ import cv2
 import numpy as np
 from nav_msgs.msg import Odometry
 from px4_msgs.msg import GimbalDeviceAttitudeStatus, VehicleAttitude, VehicleLocalPosition, VehicleStatus
-from sensor_msgs.msg import CameraInfo, Image
+from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 
 import bagio
 
@@ -90,6 +91,18 @@ def to_bgr(msg):
     return cv2.cvtColor(image, cv2.COLOR_RGB2BGR) if msg.encoding == 'rgb8' else image
 
 
+def camera_frames(bag):
+    """(stamp, file extension, encoded image bytes) for every camera frame."""
+    if bagio.CAMERA_JPEG_TOPIC in bagio.topics(bag):
+        for msg in bagio.read(bag, bagio.CAMERA_JPEG_TOPIC, CompressedImage):
+            if 'jpeg' not in msg.format:
+                raise SystemExit(f'unexpected compressed format {msg.format!r}')
+            yield bagio.header_time(msg), 'jpg', bytes(msg.data)
+    else:
+        for msg in bagio.read(bag, bagio.CAMERA_TOPIC, Image):
+            yield bagio.header_time(msg), 'png', cv2.imencode('.png', to_bgr(msg))[1].tobytes()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('bag')
@@ -106,15 +119,15 @@ def main():
     with open(os.path.join(out, 'frames.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(COLUMNS)
-        for msg in bagio.read(args.bag, bagio.CAMERA_TOPIC, Image):
-            t = bagio.header_time(msg)
+        for t, ext, data in camera_frames(args.bag):
             values = {name: s.at(t) for name, s in series.items() if name != 'nav_state'}
             nav_state = series['nav_state'].last_before(t)
             if nav_state is None or any(v is None for v in values.values()):
                 skipped += 1
                 continue
-            name = f'{written:06d}.png'
-            cv2.imwrite(os.path.join(out, 'images', name), to_bgr(msg))
+            name = f'{written:06d}.{ext}'
+            with open(os.path.join(out, 'images', name), 'wb') as image:
+                image.write(data)
             writer.writerow(
                 [written, name, f'{t:.6f}', nav_state[0]]
                 + [f'{c:.4f}' for c in values['ekf_pos']] + [f'{c:.6f}' for c in values['ekf_q']]

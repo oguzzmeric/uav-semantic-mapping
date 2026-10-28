@@ -22,9 +22,11 @@ PX4_TOPICS = [
     '/fmu/out/gimbal_device_attitude_status',  # measured camera orientation
     '/fmu/out/vehicle_status_v1',              # arming state and flight mode
 ]
+JPEG_QUALITY = 95  # 0.9 MB per 1080p frame in the village world, PSNR 38 dB (raw: 6.2 MB)
+
 SIM_TOPICS = [
-    '/camera/image',
-    '/camera/camera_info',  # intrinsics
+    '/camera/image/compressed',  # JPEG; the raw /camera/image is ~10 GB per survey
+    '/camera/camera_info',       # intrinsics
     '/gz/odometry',         # true vehicle pose (ENU) and velocity, for evaluation only
     '/clock',
     '/rosout',              # mission log
@@ -54,14 +56,24 @@ def _bridge_and_record(context):
         ],
         output='screen',
     )
-    # Lossless zstd: images of the empty test world shrink ~380x, so the real ratio has
-    # to be measured in a textured world before choosing a lossy format.
+    jpeg = Node(
+        package='image_transport',
+        executable='republish',
+        name='camera_jpeg',
+        parameters=[{'in_transport': 'raw', 'out_transport': 'compressed',
+                     'out.compressed.format': 'jpeg',
+                     'out.compressed.jpeg_quality': JPEG_QUALITY}],
+        # Remapping 'out' alone does not reach the transport's sub-topic 'out/compressed'.
+        remappings=[('in', '/camera/image'), ('out/compressed', '/camera/image/compressed')],
+        output='screen',
+    )
+    # zstd on top of JPEG only helps the small topics.
     record = ExecuteProcess(
         cmd=['ros2', 'bag', 'record', '-s', 'mcap', '--storage-preset-profile', 'zstd_fast',
              '-o', out, '--topics', *SIM_TOPICS, *PX4_TOPICS],
         output='screen',
     )
-    return [bridge, record]
+    return [bridge, jpeg, record]
 
 
 def generate_launch_description():
