@@ -4,6 +4,47 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-10-28 — Değerlendirme araçları, köy dünyası, JPEG kayıt, ilk tespit (Hafta 1 bitti)
+
+**Yapıldı**
+- `tools/check_pose.py <kayıt>`: EKF2 ↔ Gazebo gerçek pozu (eksen başına sistematik/saçılma, yatay medyan/p95/maks), zaman kayması taraması (−300…+300 ms), yaw hatası (tarama + sadece şerit). Ortak okuma/dönüşüm kodu `tools/bagio.py` (commit `3ac6723`).
+- `tools/export_bag.py <kayıt>` → `data/export/<ad>/`: `images/` (her kare), `frames.csv` (kare başına sim saati, uçuş modu, EKF2 konumu + yönelim kuaterniyonu, gimbal kuaterniyonu, gerçek poz; hepsi kare anına enterpolasyonlu, NED/FRD, (w,x,y,z)), `camera.json` (iç parametreler) (commit `30c2c72`). Kararlar: yönelim kuaterniyon (nadirde Euler gimbal kilidine düşer), OpenCV.
+- Köy dünyası: `sim/gz_worlds/make_village.py --seed N` → `village.sdf` + `village_objects.csv` (gerçek konumlar: NED, **taban merkezi**, boy/uzunluk/genişlik). Seed 1: 20 insan (4 model), 12 araç (yollarda, yol yönünde; 5 model), 3 ev (kenarlarda), artı şeklinde iki 7 m'lik yol, 20 m'lik dokulu zemin karoları (ambientCG CC0, %70 Ground037 + %30 Grass004, rastgele döndürülmüş). İnsan/araç merkezleri arası ≥ 4 m (2 m eşleşme eşiğinin iki katı). `setup/fetch_textures.sh` dokuları indirir (gitignore'da), `px4_overlay.sh` dünyaları linkler, `sim/gz_worlds/CREDITS.md` lisanslar (tek CC-BY: MaleVisitorOnPhone) (commit `a16cf3b`, `3b0d664`).
+- Kayıt JPEG kalite 95 (`image_transport republish` → `/camera/image/compressed`); dışa aktarma JPEG baytlarını değiştirmeden yazar (ham kayıtlar için PNG yolu duruyor) (commit `9a4fc66`). `ros-jazzy-compressed-image-transport` kuruldu.
+- Tespit paketleri `uv` `detect` grubunda (`uv sync --group dev --group detect`): torch 2.10.0+cu128, Ultralytics 8.3.253 (model 8.3.155 ile eğitildi), NumPy < 2. CI torch'suz kalır (commit `d3399c1`). `.venv` 7,4 GB.
+- CLAUDE.md: köy dünyası, kayıt/dışa aktarma komutları, yeni tuzaklar (commit `b87a8d5`).
+
+**Ölçüldü**
+- `check_pose` (boş dünya): yatay medyan 0,069 m, p95 0,123, maks 0,180 m; sistematik K/D/A +0,010/+0,017/−0,033 m; en iyi kayma 0 ms; şeritte yaw maks 1,42° (std 0,48°). Elle yapılan önceki analizle tutarlı.
+- Dışa aktarma doğrulaması (1751 tarama karesi): CSV'den EKF − gerçek yatay medyan 0,069 m ve yaw `check_pose` ile birebir; kameranın nadirden sapması ort. 1,00° (görev node'u 0,99°); kamera "sağ" ekseni ↔ drone "sağ" ekseni ort. −0,15° → **gimbal kuaterniyonu dünyaya göre ve gerçek pozla aynı kuralda** (PX4 `GZGimbal`: kamera IMU'sunun Gazebo yönelimi, büyük ihtimalle gürültüsüz → simülasyonda gimbal hatası ≈ 0; hassasiyet analizinde yapay gürültü şart).
+- Tarama penceresinin (offboard + 30 m) ilk ~14 karesi gimbal henüz dönerken çekiliyor (~90° sapma) → konumlandırma kareleri nadir sapmasıyla da süzmeli.
+- Model orijinleri: hepsi zeminde. Taban merkezi ↔ orijin: insanlarda ≤ 0,08 m, Hatchback'te 0,34 m → betik nesneleri taban merkezine göre yerleştirir. Boylar: insan 1,67–1,92 m, araç 1,57–2,16 m (`village_objects.csv`; sınıf yüksekliği düzeltmesi için).
+- Köy dünyası: açılış 16–43 s (ilk açılışta Fuel indirmesi), **RTF 0,99**, Gazebo **753 MB VRAM**, GPU %19–29. Uçuş/poz sayıları boş dünyayla aynı (EKF yatay medyan 0,070 m, şeritte yaw maks 1,47°, gimbal şeritte 0,64°).
+- Kayıt boyutu (köy, ~2450 kare): ham 6,2 MB/kare → bag 10 GB (zstd ~4 MB/kare); PNG 3,3 MB (8,1 GB); **JPEG q95 0,89 MB, PSNR 38,3 dB → bag 2,1 GB**; q90 0,61 MB / 36,2 dB. Kamera iki biçimde de 10,000 Hz, kare kaybı yok. Dışa aktarma (JPEG) 8 s.
+- **İlk tespit** (Oğuz'un YOLO11l'i, köy kareleri, gözle): imgsz 1280 **fp32** 113–119 ms/kare; iki karede görünen bütün araçlar (0,89–0,93; kesik bir araba 0,42) ve 6 insan (0,60–0,78; kutu 31–65 px) bulundu, ev/yol/çimde yanlış tespit yok. `.venv` (8.3.253) ile `~/.local` (8.4.23) aynı kutuları verdi. Resmi ölçüm değil (2 kare).
+- **fp16 GTX 1650'de kullanılamaz:** imgsz 1280'de çıktı NaN (hiç tespit yok), 640'ta çalışıyor ama fp32'den 4× yavaş (154 vs 36 ms; 1280'de 513 vs 113 ms). Kart (TU117) tensör çekirdeksiz. Not: Ultralytics ilk `predict`'teki `half` ayarını sonraki çağrılarda yeniden kullanır → karşılaştırmada model her ayar için yeniden yüklenmeli.
+
+**Sorunlar**
+- Fuel modelleri Harmonic'te: House 1-3 siyah (OGRE malzeme betiği), Hatchback'ler beyaz (doku yolu bozuk) → dünya bu modelleri kendisi tanımlıyor, doku PBR `albedo_map`. Üç Hatchback'in dokusu aynı adlı (`hatchback.png`) ve Gazebo dokuyu ada göre önbelleğe aldığı için hepsi beyaz çıktı → farklı adlarla indiriliyor. Male visitor bir aktör (animasyonlu, 1 m kaydırılmış) → MaleVisitorOnPhone; Prius eklemli sürülebilir araç → çıkarıldı.
+- Araç yerleştirme ilk sürümde takıldı (boşluk iki taraftan ekleniyordu, yollar doldu) → boşluk sadece adaya; yol 7 m (iki 3,5 m şerit), araçlar arası 0,5 m. 20/20 seed yerleşiyor.
+- `republish`: `out` yeniden adlandırması `out/compressed`'e geçmiyor → doğrudan `out/compressed:=...`.
+- `timeout` ile kestiğim `ros2 topic hz` Ubuntu'da "ros2 çöktü" bildirimi açtı (zararsız).
+- `data/bags/village_seed1_alt30` (3,3 GB, 6376 kare): `uv` kurulumu turumu bloke ettiği için kayıt inişten ~6 dk sonra durduruldu; tarama kareleri tam, fazlası yerde.
+- Torch/Ultralytics/OpenCV ayrıca `~/.local`'de de kurulu (pip --user); `.venv` önce geldiği için devrede değil.
+
+**Sıradaki adım (Hafta 2)**
+- Simülasyonda tespit ölçüm yöntemi kararı: kare başına gerçek kutular nereden? (Gazebo bounding-box kamera sensörü / gerçek konumların izdüşümü) + eşleşme kuralı (IoU) ölçümden önce sabitlenir.
+- Offline tespit betiği (tam çözünürlük + tiling, fp32) ve köy kayıtlarında P/R; VisDrone test-dev (pycocotools) + ezber kontrolü.
+- TensorRT kurulumu ve fp16/fp32 ölçümü (fp16 PyTorch'ta bozuk; TensorRT'de ayrıca bakılacak); canlı tespit node'u + Rerun.
+
+**Açık kararlar**
+- Sınıf eşlemesi **sabitlendi:** insan ← INSAN; araç ← ARABA, KAMYON, OTOBUS, MOTOR; UAP, UAI, MAKINE, GEMI, TREN yok sayılır.
+- Harita (Hafta 3'te şekillenecek, ön tercihler): pycolmap (CPU), SIFT ile başla (başarısızsa SuperPoint/ALIKED + LightGlue, lisans kontrolüyle), konuma göre eşleştirme, EKF pozları COLMAP'e **verilmez** (Umeyama ile bağımsız hizalama), sadece seyrek harita. Loop closure ayrıca gerekmez (konuma göre eşleştirme + global BA).
+- Canlı tespitin hassasiyeti (fp16 bu kartta bozuk; TensorRT fp16/fp32 ölçümü sonrası).
+- Ultralytics `~/.local` kopyalarının kaldırılması (Oğuz'un ortamı, istenirse).
+
+---
+
 ## 2026-10-27 — Kamera köprüsü, saat eşitleme, ilk kayıtlı görev
 
 **Yapıldı**
