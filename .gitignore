@@ -17,6 +17,9 @@ datasets/
 logs/
 runs/
 
+# Downloaded simulation assets (setup/fetch_textures.sh)
+sim/gz_worlds/textures/
+
 # COLMAP outputs
 colmap_ws/
 *.db
