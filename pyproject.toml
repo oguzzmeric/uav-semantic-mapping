@@ -8,6 +8,22 @@ dependencies = []
 
 [dependency-groups]
 dev = ["pytest>=8"]
+# Detection (uv sync --group detect). Kept out of the core so CI tests run without torch.
+detect = [
+    "ultralytics>=8.3.155,<8.4",  # the model was trained with 8.3.155
+    "torch==2.10.*",
+    "torchvision",
+    "numpy<2",  # ROS 2 Jazzy's cv_bridge is built against NumPy 1.x
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
