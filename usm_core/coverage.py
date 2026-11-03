@@ -9,7 +9,6 @@ Frames and conventions:
 """
 from dataclasses import dataclass
 import math
-from turtle import width
 
 
 @dataclass(frozen=True)
