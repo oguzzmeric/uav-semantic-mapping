@@ -4,6 +4,84 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-11-03 — Mimari turu, tespit çekirdeği, Rerun kurulumu (Hafta 2)
+
+(28 Eki akşamı ve 30 Eki dahil.)
+
+**Yapıldı**
+- (28 Eki akşam) Tespitli uçuş videosu `data/videos/village_seed1_alt30_detections.mp4`: kayıtlı uçuş, YOLO fp32 1280, kuşbakışı harita paneli (scratchpad betiği, repoda değil). Oğuz'un aynı akşamki uçuşu kaydedilmedi; kayıt launch'ı başlatılmamıştı. Ders: komutlar tek seferde verilmeli → `survey.launch.py` fikri.
+- (30 Eki, 3 Kas) **Mimari turu**, canlı gösterimlerle: Konu 1 (büyük resim: Gazebo/PX4/Agent/ROS 2/kaptan, 3 köprü), 2a (EKF2 ve Kalman sezgisi), 5 (YOLO, GPU, fp16/fp32, canlı ve offline), 4a (zaman damgaları, sim/duvar saati, QoS). Kalan konular kullanılacakları işten hemen önce anlatılacak:
+  - 5b (P/R/AP): offline ölçümden önce;
+  - 2b + 6a + 3'ün gimbal kısmı: ⑥ konumlandırmadan önce;
+  - 3'ün kalanı: `survey.launch.py`'den önce;
+  - 6b: COLMAP'ten önce.
+- Canlı tespit tasarım kararları (aşağıda, "Kararlar").
+- `usm_core/detection.py`, tespit çekirdeği (canlı node ve offline betik ortak kullanacak):
+  - `Detector`: YOLO, fp32, imgsz 1280, conf 0,25, NMS IoU 0,7; `warmup()`; aşama süreleri.
+  - `Settings` (dondurulmuş), `Detection` (sade kutu), `CLASS_MAP`.
+  - Ultralytics `Detector` oluşturulurken import ediliyor; böylece CI torch'suz test edebiliyor.
+  - `tests/test_detection.py`: 4 test (eşleme, atılan sınıflar, yazım hatası koruması, import torch yüklemiyor). Toplam **26 test geçiyor**.
+- `rerun-sdk` 0.23.1 `detect` grubunda; `pyarrow<26` (bkz. Sorunlar).
+- Oğuz `coverage.py`'deki kullanılmayan `from turtle import width` satırını sildi (tkinter'sız makinede import'u bozardı).
+
+**Ölçüldü**
+- EKF2, yerde, canlı:
+  - `eph` 0,15 m, `epv` 0,17 m, `evh` 0,09 m/s;
+  - `heading_var` 0,034 rad² (≈ ±10°), `heading_good_for_control: false`: yerde yön sadece pusuladan;
+  - dışarı verilen hızlar: `sensor_combined` 99,4 Hz, `vehicle_local_position` 49,7 Hz.
+- RTF, 3 saat açık kalan simülasyon: PX4 sim saati 11 135 s, duvar saati 11 207 s → **0,994**.
+- PX4 `/fmu/out` QoS: BEST_EFFORT, TRANSIENT_LOCAL. Yayıncı `_CREATED_BY_BARE_DDS_APP_` (Agent; bir ROS node'u değil).
+- VRAM, arayüzlü köy simülasyonu, YOLO yokken:
+  - toplam 1359 / 4096 MiB: gz sunucusu 771, **gz arayüzü 564 MiB** (`HEADLESS=1` ~0,5 GB kazandırır);
+  - GPU %38.
+- YOLO anatomisi, kare 1600 (`village_seed1_alt30`):
+  - 1920×1080 → 1280×736;
+  - ham çıktı (1, 14, 19 320) = 160×92 + 80×46 + 40×23 aday;
+  - 0,25 üstü 77 aday → NMS sonrası 8 kutu (6 araç, 2 insan; insanlar ağ girişinde 25×17 ve 31×23 px);
+  - alt kenarda yarısı kare dışında kalan bir insan kaçırıldı.
+- Hız, Gazebo aynı GPU'da açıkken:
+  - ham ağ 165–169 ms;
+  - `Detector`: ön işleme 7–9 / ağ 150–157 / son işleme 2–19 ms → **~6 kare/s, kamera 10 Hz** → canlıda kare atlanacak (depth 1). Sürenin ~%90'ı ağın kendisi.
+  - 28 Ekim'deki 113–119 ms büyük ihtimalle Gazebo kapalıyken ölçülmüştü.
+  - CPU'da ağ 1466 ms.
+  - YOLO tensörleri 403 MB (PyTorch'un ayırdığı; süreç toplamı değil).
+
+**Sorunlar**
+- Rerun kurulumu pyarrow 26'yı getirdi; pyarrow 26 NumPy ≥ 2 istiyor (`import rerun` hatası). NumPy 1.x'te kalıyoruz (`cv_bridge`, ROS mesaj kütüphaneleri). pyarrow 21–25 ayrı bir geçici ortamda NumPy 1.26 ile denendi, hepsi çalıştı → `pyarrow<26`. uv çözücüsüne göre rerun-sdk ≥ 0.23.2 NumPy ≥ 2 istiyor → `rerun-sdk<0.24`.
+
+**Sıradaki adım (onaylandı, buradan devam)**
+- **Adım 3:**
+  - `ros/usm_mission/launch/bridge.launch.py`: köprü 3 tek başına (kamera, `camera_info`, odometri, `/clock`).
+  - `record.launch.py`'den köprü çıkarılır; JPEG + kayıt kalır.
+  - Kayda `/detections` eklenir.
+  - Kamera yayında değilse kaydedici uyarı basar.
+  - Doğrulama: `ros2 topic hz /clock`, `/camera/image` listede.
+- Adım 4: `ros/usm_detection` paketi (`live_detector.py` + `live.launch.py`).
+- Adım 5: `tools/live_stats.py` (CSV → Hz, gecikme, atlanan kare).
+- Adım 6: CLAUDE.md çalıştırma komutları, commit.
+- Sonra: Konu 5b → offline tespit + simülasyonda P/R; VisDrone; TensorRT (gerekirse ilk kesilecek iş).
+- 4 Kasım ara kontrolü: şerit uçuşu ✅, canlı tespit henüz yok (hedef: PyTorch fp32).
+
+**Kararlar (sabitlendi)**
+- Canlı tespit:
+  - (1a) çekirdek `usm_core/detection.py`, node yeni `ros/usm_detection` paketinde;
+  - (2a) köprü 3 ayrı launch dosyasında, JPEG kayıtla kalır;
+  - (3a) `/detections`, `vision_msgs/Detection2DArray`, damga = **karenin** damgası;
+  - (4) Rerun: 960×540 JPEG görüntü, kutular, EKF2 izi, Hz/gecikme grafikleri; zaman çizelgesi sim saati; viewer bellek sınırı 2 GB.
+- Canlı ölçüm yöntemi (ölçümden önce sabitlendi):
+  - pencere: offboard + 30 m (`check_pose` ile aynı);
+  - Hz = işlenen kare / süre, yanında atlanan kare oranı;
+  - gecikme: toplam ve taşıma sim saatinde (`use_sim_time`); ön işleme/ağ/son işleme duvar saatinde; medyan / p95 / maks + RTF;
+  - VRAM: `nvidia-smi` 1 Hz, süreç bazında, en yüksek değer;
+  - kare başına CSV `data/live/<tarih>.csv`;
+  - ayarlar offline ile aynı (`Settings`).
+
+**Açık kararlar**
+- Canlı konum: ayrı bir node (`live_geolocator`, `/detections` + EKF2) mı, `live_detector`'ın içinde mi? 3. hafta, ⑥ bitince.
+- Simülasyonda tespit ölçümünün gerçek kutuları ve IoU kuralı (Konu 5b'de).
+
+---
+
 ## 2026-10-28 — Değerlendirme araçları, köy dünyası, JPEG kayıt, ilk tespit (Hafta 1 bitti)
 
 **Yapıldı**
