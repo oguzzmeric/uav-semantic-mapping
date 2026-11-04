@@ -1,19 +1,18 @@
-"""Bridge the Gazebo camera and true vehicle pose into ROS 2 and record a survey to MCAP.
+"""Record a survey to MCAP, with the camera compressed to JPEG.
 
-Run from the repo root while the simulation and the XRCE agent are up; stop with Ctrl+C
-after landing:
+Needs bridge.launch.py and the XRCE agent. Run from the repo root while the simulation is
+up; stop with Ctrl+C after landing:
 
     ros2 launch usm_mission record.launch.py                 # -> data/bags/<YYYYmmdd_HHMMSS>
-    ros2 launch usm_mission record.launch.py out:=data/bags/alt30 world:=village
+    ros2 launch usm_mission record.launch.py out:=data/bags/alt30
 """
 from datetime import datetime
+import subprocess
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-
-VEHICLE = 'usm_x500_gimbal_0'  # model name PX4 spawns: <PX4_SIM_MODEL without gz_>_<instance>
 
 # All stamps share the simulation clock (UXRCE_DDS_SYNCT=0 in the airframe).
 PX4_TOPICS = [
@@ -30,32 +29,19 @@ SIM_TOPICS = [
     '/gz/odometry',         # true vehicle pose (ENU) and velocity, for evaluation only
     '/clock',
     '/rosout',              # mission log
+    '/detections',          # live detector's boxes, if it is running
 ]
 
 
-def _bridge_and_record(context):
-    world = LaunchConfiguration('world').perform(context)
-    out = LaunchConfiguration('out').perform(context)
-    camera = f'/world/{world}/model/{VEHICLE}/link/camera_link/sensor/camera'
-    odometry = f'/model/{VEHICLE}/odometry'  # OdometryPublisher in usm_x500_gimbal
+def _camera_is_bridged() -> bool:
+    info = subprocess.run(['ros2', 'topic', 'info', '/camera/image'],
+                          capture_output=True, text=True, timeout=20)
+    return 'Publisher count: 0' not in info.stdout and info.returncode == 0
 
-    bridge = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        name='gz_bridge',
-        arguments=[  # gz -> ROS only ('[')
-            f'{camera}/image@sensor_msgs/msg/Image[gz.msgs.Image',
-            f'{camera}/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
-            f'{odometry}@nav_msgs/msg/Odometry[gz.msgs.Odometry',
-            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-        ],
-        remappings=[
-            (f'{camera}/image', '/camera/image'),
-            (f'{camera}/camera_info', '/camera/camera_info'),
-            (odometry, '/gz/odometry'),
-        ],
-        output='screen',
-    )
+
+def _record(context):
+    out = LaunchConfiguration('out').perform(context)
+
     jpeg = Node(
         package='image_transport',
         executable='republish',
@@ -73,14 +59,17 @@ def _bridge_and_record(context):
              '-o', out, '--topics', *SIM_TOPICS, *PX4_TOPICS],
         output='screen',
     )
-    return [bridge, jpeg, record]
+    actions = [jpeg, record]
+    if not _camera_is_bridged():  # the bag would stay silently empty of camera frames
+        actions.insert(0, LogInfo(msg='WARNING: /camera/image has no publisher. '
+                                      'Is bridge.launch.py running?'))
+    return actions
 
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('world', default_value='default', description='Gazebo world name'),
         DeclareLaunchArgument(
             'out', default_value=f'data/bags/{datetime.now():%Y%m%d_%H%M%S}',
             description='output bag directory (must not exist)'),
-        OpaqueFunction(function=_bridge_and_record),
+        OpaqueFunction(function=_record),
     ])

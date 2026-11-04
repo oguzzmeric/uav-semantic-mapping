@@ -50,6 +50,7 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - Rerun kurulumu pyarrow 26'yı getirdi; pyarrow 26 NumPy ≥ 2 istiyor (`import rerun` hatası). NumPy 1.x'te kalıyoruz (`cv_bridge`, ROS mesaj kütüphaneleri). pyarrow 21–25 ayrı bir geçici ortamda NumPy 1.26 ile denendi, hepsi çalıştı → `pyarrow<26`. uv çözücüsüne göre rerun-sdk ≥ 0.23.2 NumPy ≥ 2 istiyor → `rerun-sdk<0.24`.
 
 **Sıradaki adım (onaylandı, buradan devam)**
+- **Önce Adım 2'yi yeniden anlat** (Oğuz'un isteği): Rerun nedir; paket, bağımlılık ve sürüm sabitleme; NumPy 1.x/2 uyumsuzluğu neden ROS'u kırar; pyarrow hatası nasıl teşhis edilip çözüldü.
 - **Adım 3:**
   - `ros/usm_mission/launch/bridge.launch.py`: köprü 3 tek başına (kamera, `camera_info`, odometri, `/clock`).
   - `record.launch.py`'den köprü çıkarılır; JPEG + kayıt kalır.
