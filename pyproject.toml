@@ -16,6 +16,7 @@ detect = [
     "numpy<2",  # ROS 2 Jazzy's cv_bridge is built against NumPy 1.x
     "rerun-sdk>=0.23.1,<0.24",  # live visualisation; newer releases need NumPy 2
     "pyarrow<26",  # rerun's dependency; 26 refuses to import with NumPy 1.x
+    "setuptools<80",  # torch pulls it in; colcon --symlink-install needs develop --editable
 ]
 
 [tool.uv.sources]
