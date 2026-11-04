@@ -13,6 +13,8 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - `tools/sample_gpu.py` (süreç başına VRAM, yük, sıcaklık, saat, kısıtlama) ve `tools/live_stats.py` (sabitlenen yöntemle tarama penceresi sayıları).
 - `setuptools<80`: torch setuptools 84 getirmişti, `colcon build --symlink-install` 28 Ekim'den beri bozuktu (o günden beri derleme yapılmadığı için fark edilmedi).
 - CLAUDE.md: çalıştırma komutları ve yeni tuzaklar.
+- Kare düzeyi ölçüm: `usm_core/projection.py` + `mesh.py` + `tools/truth_boxes.py` (mesh'ler gerçek pozla izdüşürülür → `truth_coco.json`), `tools/detect_offline.py` (`--tiled`), `tools/eval_detections.py` (pycocotools). Değerlendirici önce cevabı elle bilinen küçük veride sınandı. Toplam 52 test geçiyor.
+- Konu 5b dersi verildi; `pycocotools` 2.0.11 `detect` grubuna eklendi.
 
 **Ölçüldü** (simülasyonda, PyTorch fp32, imgsz 1280, arayüzlü Gazebo; tarama penceresi: offboard + 30 m)
 
@@ -28,19 +30,40 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - İki uçuş Rerun'un Hz'ye etkisini ayıramadı: Rerun'lu uçuş daha serin başladı, ağ süresi daha düşük çıktı. Tek karşılaştırma; kanıt değil.
 - Kısa testte (yerde, Agent kapalı) `rerun:=false` 3,18 Hz, gecikme medyanı 374 ms: uçuştakinden iyi.
 
+- **Yavaşlama deneyi (ROS ve simülasyon yok, aynı 120 kare, 5 dk, 2537 kare):** ağ 109 → 113 ms (%4), 8,67 → 8,31 Hz; GPU 65 → 81°C, CPU paketi 95°C, GPU hep `sw_power_cap`. Uçuştaki ~%50'lik yavaşlama YOLO'nun kendisinden gelmiyor.
+- **Kare düzeyi tespit, `village_seed1_alt30` (geliştirme verisi, simülasyonda, 1737 kare, IoU ≥ 0,5, P/R skor ≥ 0,25):**
+
+| Çalışma | Sınıf | Gerçek | TP | FP | FN | P | R | AP50 | AP50-95 |
+|---|---|---|---|---|---|---|---|---|---|
+| Tiling'siz | insan | 2836 | 2307 | 89 | 529 | 0,963 | 0,813 | 0,948 | 0,605 |
+| Tiling'siz | araç | 1576 | 1572 | 4 | 4 | 0,997 | 0,997 | 1,000 | 0,772 |
+| Tiling'li | insan | 2836 | 2492 | 235 | 344 | 0,914 | 0,879 | 0,941 | 0,610 |
+| Tiling'li | araç | 1576 | 1561 | 4 | 15 | 0,997 | 0,990 | 0,990 | 0,797 |
+
+- Nesne başına karede bulunma: her nesne en az 61 karede bulundu. `person_01` tiling'siz 61/113 (%54) → tiling'li 91/113 (%81). Aynı 3B modelde bile oran çok değişiyor (Standing person tiling'siz %54–%99); sebebi ölçülmedi.
+- Hız, Gazebo kapalı: tiling'siz medyan 116 ms/kare.
+
 **Sorunlar**
 - Rerun açılışta kendi kaydettiği yerleşimi yükledi, harita paneli görünmedi → `send_blueprint(make_active=True)`. Düzeltme gerçek pencerede henüz görülmedi.
 - Ctrl+C iki kez ulaştığı için kapanışta `Traceback` → ikinci sinyal yok sayılıyor; 3 denemede temiz kapandı. Kapanışta `exception was never retrieved` mesajı kalıyor (süreçler temiz bitiyor, sebebi incelenmedi).
 - Uçuş 1 öncesi "Rerun en güçlü şüpheli" demiştim; `no_viewer` uçuşu bunu zayıflattı.
 
 **Sıradaki adım**
-- Yeni yerleşim ve renkleri pencerede kontrol et.
-- Yavaşlama için `Detector`'ı ROS ve simülasyon olmadan ~5 dk çalıştır (tek hipotez: donanım mı, ROS/simülasyon mu).
-- Konu 5b → offline tespit + simülasyonda P/R; VisDrone; TensorRT (gerekirse ilk kesilecek iş).
+- Yeni Rerun yerleşimi ve renkleri açılışta pencerede kontrol edilecek (yerleşim bu oturumda `⋯` menüsüyle gelmişti).
+- VisDrone test-dev + ezber kontrolü (diskte 18 GB boş). TensorRT için öneri: atla, resmi sayıları etkilemiyor; karar Oğuz'da.
+- Konu 2b + 6a + 3'ün gimbal kısmı → ⑥ konumlandırma (11 Kasım ara kontrolü).
+
+**Kararlar**
+- Canlı ekrana harita eklenmedi: panel iz olarak kalır, ⑥'dan sonra nesne noktaları eklenir. Asıl harita COLMAP ile uçuş sonrası.
+- Kare düzeyi ölçüm kuralları, sonuçlardan önce sabitlendi: IoU ≥ 0,5 (AP50 + AP50-95, pycocotools); P/R skor ≥ 0,25; kareler offboard + 30 m + nadirden ≤ 10°; kutusunun %50'sinden azı karede olan ya da %50'den çoğu ev altında kalan nesne sayılmaz; evin üstündeki kutu yanlış alarm.
+- **Kural değişikliği:** gerçek kutular başta 3B prizmadan türetildi; insanlarda fazla bol çıktı (66 × 55 px; doğru bir kutunun IoU'su ~0,31) → mesh dış zarfına geçildi (48 × 37 px). Karar P/R görülmeden verildi, ama önceki gösterimlerden birkaç model kutusu biliniyordu.
+- `seed 1` artık geliştirme verisi (tiling buna bakılarak seçildi). **Resmi sayılar yeni köyden (`--seed 2`) ve yeni uçuştan gelecek**; ayarlar ondan önce sabitlenir. `make_village.py` `village_objects.csv`'nin üzerine yazar, köy dosyaları ayrı saklanmalı.
+- Tiling: 2 parça 1280 × 1080, 640 px örtüşme, iç kenara değen kutu atılır, sınıf başına NMS 0,7 (sonuç görülmeden sabitlendi).
 
 **Açık kararlar**
-- Simülasyonda tespit ölçümünün gerçek kutuları ve IoU kuralı (Konu 5b'de).
+- Tiling'li mi tiling'siz mi? AP neredeyse aynı; nesne düzeyi ölçüm (⑥ + ⑦) belirleyecek. `seed 2`'den önce kapanmalı.
 - Canlı konum: ayrı node mu, `live_detector` içinde mi? (⑥ bitince)
+- Canlıdaki yavaşlamanın kaynağı (ROS mu, simülasyon yükü mü) ayrılmadı; yalnızca önizlemeyi etkiliyor, öncelik düşük.
 
 ---
 
