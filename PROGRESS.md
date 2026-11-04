@@ -4,6 +4,46 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-11-04 — Canlı tespit uçuşta çalıştı (4 Kasım ara kontrolü geçti)
+
+**Yapıldı**
+- Adım 2 yeniden anlatıldı. Konu 4a ve Konu 5'in üstüne canlı tespit tasarımı uygulandı.
+- `bridge.launch.py`: köprü 3 tek başına. `record.launch.py`: JPEG + kayıt, kamera yayında değilse uyarı, `/detections` kayda ekli.
+- `ros/usm_detection`: `live_detector.py` (en yeni kare, `/detections`, Rerun, kare başına CSV) + `live.launch.py` (`use_sim_time`, `run:=<ad>`, GPU kaydı).
+- `tools/sample_gpu.py` (süreç başına VRAM, yük, sıcaklık, saat, kısıtlama) ve `tools/live_stats.py` (sabitlenen yöntemle tarama penceresi sayıları).
+- `setuptools<80`: torch setuptools 84 getirmişti, `colcon build --symlink-install` 28 Ekim'den beri bozuktu (o günden beri derleme yapılmadığı için fark edilmedi).
+- CLAUDE.md: çalıştırma komutları ve yeni tuzaklar.
+
+**Ölçüldü** (simülasyonda, PyTorch fp32, imgsz 1280, arayüzlü Gazebo; tarama penceresi: offboard + 30 m)
+
+| Uçuş | Kare | Hz | Atlanan | Toplam gecikme medyan / p95 (ms) | Ağ medyan (ms) | Rerun (ms) | Tarama sıcaklığı | RTF |
+|---|---|---|---|---|---|---|---|---|
+| `no_viewer` | 399 | 2,29 | %77 | 508 / 812 | 285 | yok | ort. 84,7°C | 0,987 |
+| `with_viewer_2` | 402 | 2,30 | %77 | 428 / 704 | 232 | 68 | ort. 81,6°C | 0,990 |
+| İlk uçuş (eski kod, tüm iz her karede) | 325 | 1,87 | %81 | 512 / 831 | 286 | 81 | ölçülmedi | ölçülmedi |
+
+- VRAM en fazla: `no_viewer` 2237 MiB, `with_viewer_2` 2518 MiB (Gazebo sunucusu 797, arayüz ~711, node 700, Rerun 278).
+- Görev tamamlandı: tarama ~174 s; RTL + iniş; kutu/kare: insan ~1,37, araç ~1,10.
+- **Uçuş boyunca yavaşlama (açıklanamadı):** her iki uçuşta da ağ süresi tarama boyunca artıyor (`no_viewer` 220 → 336 ms, `with_viewer_2` 200 → 293 ms; Hz ~2,7 → ~2,0). GPU saati düşmüyor (~1700 MHz). Güç sınırı (`sw_power_cap`) örneklerin ~%70'inde, ama payı tarama boyunca artmıyor. Isı kısıtlaması `no_viewer`'da az, `with_viewer_2`'de taramada yok.
+- İki uçuş Rerun'un Hz'ye etkisini ayıramadı: Rerun'lu uçuş daha serin başladı, ağ süresi daha düşük çıktı. Tek karşılaştırma; kanıt değil.
+- Kısa testte (yerde, Agent kapalı) `rerun:=false` 3,18 Hz, gecikme medyanı 374 ms: uçuştakinden iyi.
+
+**Sorunlar**
+- Rerun açılışta kendi kaydettiği yerleşimi yükledi, harita paneli görünmedi → `send_blueprint(make_active=True)`. Düzeltme gerçek pencerede henüz görülmedi.
+- Ctrl+C iki kez ulaştığı için kapanışta `Traceback` → ikinci sinyal yok sayılıyor; 3 denemede temiz kapandı. Kapanışta `exception was never retrieved` mesajı kalıyor (süreçler temiz bitiyor, sebebi incelenmedi).
+- Uçuş 1 öncesi "Rerun en güçlü şüpheli" demiştim; `no_viewer` uçuşu bunu zayıflattı.
+
+**Sıradaki adım**
+- Yeni yerleşim ve renkleri pencerede kontrol et.
+- Yavaşlama için `Detector`'ı ROS ve simülasyon olmadan ~5 dk çalıştır (tek hipotez: donanım mı, ROS/simülasyon mu).
+- Konu 5b → offline tespit + simülasyonda P/R; VisDrone; TensorRT (gerekirse ilk kesilecek iş).
+
+**Açık kararlar**
+- Simülasyonda tespit ölçümünün gerçek kutuları ve IoU kuralı (Konu 5b'de).
+- Canlı konum: ayrı node mu, `live_detector` içinde mi? (⑥ bitince)
+
+---
+
 ## 2026-11-03 — Mimari turu, tespit çekirdeği, Rerun kurulumu (Hafta 2)
 
 (28 Eki akşamı ve 30 Eki dahil.)

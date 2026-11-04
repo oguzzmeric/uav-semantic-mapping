@@ -28,9 +28,12 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **Köy dünyası:** `sim/gz_worlds/make_village.py --seed N` → `village.sdf` + `village_objects.csv` (nesnelerin gerçek konumları: NED, taban merkezi, boy; tüm metriklerin referansı). Elle düzenlenmez, betikten üretilir. Kaynaklar ve lisanslar: `sim/gz_worlds/CREDITS.md`.
 - **Çalıştırma (3 terminal, sonra tek launch dosyasına dönüşecek):**
   1. Simülasyon: `~/uav-sar-geolocation/setup/run_sim.sh` (arayüzsüz: `setup/run_sim.sh HEADLESS=1`; köy dünyası: `setup/run_sim.sh PX4_GZ_WORLD=village`). PX4'ün kayıtlı parametrelerini silip `make px4_sitl gz_usm_x500_gimbal`'i NVIDIA'da başlatır; her deney araç dosyasındaki ayarlardan başlar.
-  - Kayıt (repo kökünde): `ros2 launch usm_mission record.launch.py world:=village` → `data/bags/<tarih>`; dışa aktarma: `python3 tools/export_bag.py <kayıt>`; poz kontrolü: `python3 tools/check_pose.py <kayıt>`.
   2. Köprü: `~/Micro-XRCE-DDS-Agent/build/MicroXRCEAgent udp4 -p 8888` (v2.4.3, kaynaktan derlendi, sisteme kurulmadı)
   3. ROS 2: `source ~/px4_ws/install/setup.bash` (`px4_msgs` `release/1.17`, mesajlar PX4 v1.17.0 ile birebir doğrulandı)
+  - Gazebo köprüsü (kamera, gerçek konum, `/clock`; kayıt ve canlı tespit için gerekli, tek bir tane açılır): `ros2 launch usm_mission bridge.launch.py world:=village`
+  - Kayıt (repo kökünde, köprü açıkken): `ros2 launch usm_mission record.launch.py` → `data/bags/<tarih>`; dışa aktarma: `python3 tools/export_bag.py <kayıt>`; poz kontrolü: `python3 tools/check_pose.py <kayıt>`.
+  - Canlı tespit (repo kökünde, köprü açıkken): `ros2 launch usm_detection live.launch.py [rerun:=false] [run:=<ad>]` → `data/live/<ad>.csv` + `<ad>_gpu.csv`; sayılar: `.venv/bin/python tools/live_stats.py data/live/<ad>.csv`.
+  - Görev: `ros2 run usm_mission survey_mission`.
   - Projenin ROS paketlerini derleme (repo kökünde, `px4_ws` yüklüyken): `.venv/bin/python -m colcon build --base-paths ros --symlink-install`. colcon'u venv Python'uyla çalıştırmak node'ların ilk satırına venv Python'unu yazar; node'lar venv açık olmasa da `usm_core`'u (ve ileride torch'u) görür. Düz `colcon build` sistem Python'unu yazar ve `usm_core` import edilemez.
   - Kapatma: her terminalde **`Ctrl+C`**. Pencereyi X ile kapatmak PX4/Gazebo'yu arka planda açık bırakır.
 - GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
@@ -53,6 +56,10 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **Fuel modellerinin dokuları Harmonic'te bozuk çizilebilir:** eski OGRE malzeme betikli modeller (ör. House 1-3) **siyah**, dokusu yanlış yolda olanlar (Hatchback) **beyaz**. Çözüm: dünya modeli kendisi tanımlar, dokuyu PBR `albedo_map` ile bağlar (`make_village.py`). Gazebo dokuları **dosya adına göre önbelleğe alır**: aynı adlı iki doku (üç Hatchback'in `hatchback.png`'si) ilk yükleneni gösterir → farklı adlarla indirilir.
 - **`image_transport republish`:** `out` yeniden adlandırması `out/compressed`'e geçmez; doğrudan `out/compressed:=...` yazılır. JPEG kalitesi: `out.compressed.jpeg_quality`.
 - **`pgrep -f <desen>` kendi kabuğunu da bulur** (desen komut satırında geçiyor) → süreçler `pgrep -x px4` gibi tam adla bulunur, kapatmadan önce `HEADLESS=1` ile benim simülasyonum olduğu doğrulanır.
+- **`.venv`'deki sürüm sınırları bilinçli:** `numpy<2` (ROS kütüphaneleri NumPy'nin C arayüzüyle 1.x'e göre derlenmiş), `pyarrow<26` ve `rerun-sdk<0.24` (daha yenileri NumPy 2 istiyor; pyarrow bunu paket bilgisinde yazmadığı için hata ancak `import`'ta çıkar), `setuptools<80` (torch getiriyor; daha yenisinde `colcon --symlink-install`'ın kullandığı `develop --editable` yok).
+- **`rr.spawn` viewer'ı PATH'te arar:** venv açık değilken `.venv/bin` PATH'te olmaz, node PATH'e ekler. Rerun yerleşimi diske kaydeder (`~/.local/share/rerun/blueprints/`) ve açılışta geri yükler; yeni yerleşim `send_blueprint(make_active=True)` ile gönderilir.
+- **`use_sim_time` + uzun callback:** rclpy `/clock`'u node'un varsayılan callback grubunda işler. Tek iş parçacığında uzun bir callback sırasında sim saati durur ve gecikme ~0 ölçülür; `live_detector` bu yüzden iki iş parçacığı ve ayrı callback grubu kullanır.
+- **Ctrl+C `ros2 launch` altındaki sürece iki kez ulaşır** (terminal + launch): kapanış kodu ikinci sinyali yok saymalı.
 - **Test betikleri açık bir simülasyona dokunmamalı:** başlamadan önce PX4/Gazebo çalışıyor mu kontrol edilir (2026-10-26'da kontrolsüz bir test Oğuz'un açık simülasyonunu kapattı).
 
 ## 3. Kapsam ve öncelik
