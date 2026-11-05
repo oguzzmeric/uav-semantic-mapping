@@ -8,7 +8,7 @@ pose, so these boxes come from the geometry, not from what is seen in the frame.
 footprint and height alone were too loose for people (PROGRESS.md, 2026-11-04).
 
 Rules, fixed before any detection was compared with them (PROGRESS.md, 2026-11-04):
-- frames: offboard, at survey altitude, camera within MAX_OFF_NADIR_DEG of straight down;
+- frames: tools/frames.py;
 - an object is marked ignore (iscrowd = 1), neither missed nor a false alarm when detected, if
   under MIN_VISIBLE_SHARE of its box is inside the frame or if buildings hide over
   MAX_HIDDEN_SHARE of it.
@@ -26,19 +26,13 @@ from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation
 
 from usm_core.mesh import apply_visual_pose, load_mesh
+from frames import MAX_OFF_NADIR_DEG, is_survey_frame, read_frames  # noqa: F401
 from usm_core.projection import (
-    Box3D, Intrinsics, hidden_share, image_box, off_nadir_deg, place_on_ground,
+    CAMERA_OFFSET_FRD, Box3D, Intrinsics, hidden_share, image_box, place_on_ground,
 )
 
-NAV_STATE_OFFBOARD = 14
-ALTITUDE_TOLERANCE = 0.5   # m, as in check_pose.py
-MAX_OFF_NADIR_DEG = 10.0   # drops the frames taken while the gimbal is still turning down
 MIN_VISIBLE_SHARE = 0.5
 MAX_HIDDEN_SHARE = 0.5
-# Camera relative to the vehicle's base_link at nadir, in the vehicle's FRD frame [m]: from the
-# poses in sim/gz_models (gimbal mount 0.26 up and yawed 180 deg; pitch joint 0.0412 forward,
-# 0.162 down; camera 0.0328 from the joint along its axis, which then points down).
-CAMERA_OFFSET_FRD = np.array([0.0412, 0.0, -0.26 + 0.162 + 0.0328])
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'sim/gz_worlds'))
 from make_village import PEOPLE, VEHICLES  # noqa: E402  (where the world puts each mesh)
 
@@ -113,14 +107,11 @@ def main():
                                  boxes[n].yaw_deg) for n in targets}
 
     images, annotations = [], []
-    with open(export / 'frames.csv', newline='') as f:
-        frames = list(csv.DictReader(f))
+    frames = read_frames(export / 'frames.csv')
     for row in frames:
-        gimbal = [float(row[f'gimbal_q{c}']) for c in 'wxyz']
-        if int(row['nav_state']) != NAV_STATE_OFFBOARD \
-                or abs(float(row['ekf_d']) + args.altitude) >= ALTITUDE_TOLERANCE \
-                or off_nadir_deg(gimbal) > MAX_OFF_NADIR_DEG:
+        if not is_survey_frame(row, args.altitude):
             continue
+        gimbal = [float(row[f'gimbal_q{c}']) for c in 'wxyz']
         frame = int(row['frame'])
         images.append({'id': frame, 'file_name': row['image'],
                        'width': k.width, 'height': k.height})

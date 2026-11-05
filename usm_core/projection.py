@@ -14,6 +14,12 @@ from dataclasses import dataclass
 import numpy as np
 
 
+# Camera relative to the vehicle's base_link at nadir, in the vehicle's FRD frame [m]: from the
+# poses in sim/gz_models (gimbal mount 0.26 up and yawed 180 deg; pitch joint 0.0412 forward,
+# 0.162 down; camera 0.0328 from the joint along its axis, which then points down).
+CAMERA_OFFSET_FRD = np.array([0.0412, 0.0, -0.26 + 0.162 + 0.0328])
+
+
 @dataclass(frozen=True)
 class Intrinsics:
     width: int
