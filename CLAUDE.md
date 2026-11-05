@@ -11,7 +11,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 1. Drone verilen alanı kendi başına tarar: şerit (lawnmower) rotası, nadir kamera (gimbal −90°), fotogrametri için ~%70-80 örtüşme.
 2. Gimbal kameradan insan ve araç tespit eder: Oğuz'un TEKNOFEST 2025 için **nadir drone görüntüleriyle eğittiği YOLO11l** modeli (standart `yolo11l.yaml` mimarisi, imgsz 1280, 10 sınıf; projede INSAN ve araç sınıfları kullanılır).
    - **Canlı:** uçuşta TensorRT ile tespit + canlı konum (demo ve önizleme).
-   - **Offline:** uçuş sonrası tam çözünürlük + tiling ile tespit. **Resmi sayılar buradan gelir.**
+   - **Offline:** uçuş sonrası tam karede tespit (tiling yok; 2026-11-05 kararı: `seed 1`'de nesne düzeyinde tiling kazandırmadı ve 3 kat yavaş; irtifa taramasında 40 m'de yeniden denenecek). **Resmi sayılar buradan gelir.**
 3. Her tespitin yerdeki koordinatını hesaplar: piksel → ışın → zemin düzlemi kesişimi (EKF2 pozu + ölçülen gimbal açısı + kamera iç parametreleri; sınıfa göre nesne yüksekliği düzeltmesi).
 4. Aynı nesnenin farklı karelerdeki tespitlerini tek kayıtta birleştirir.
 5. Görev bitince başlangıç noktasına döner ve iner (PX4 RTL).
@@ -35,6 +35,8 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
   - Canlı tespit (repo kökünde, köprü açıkken): `ros2 launch usm_detection live.launch.py [rerun:=false] [run:=<ad>]` → `data/live/<ad>.csv` + `<ad>_gpu.csv`; sayılar: `.venv/bin/python tools/live_stats.py data/live/<ad>.csv`.
   - Görev: `ros2 run usm_mission survey_mission`.
   - Kare düzeyi tespit ölçümü (repo kökünde, `.venv/bin/python`): `tools/truth_boxes.py data/export/<ad> sim/gz_worlds/village_objects.csv` → `tools/detect_offline.py data/export/<ad> --run <ad> [--tiled]` → `tools/eval_detections.py data/export/<ad> --run <ad>`.
+  - Nesne düzeyi hat (aynı şekilde): `tools/geolocate.py data/export/<ad> sim/gz_worlds/village_objects.csv --run <ad>` → `tools/merge_objects.py data/export/<ad> --located <ad>_ekf` → `tools/eval_objects.py data/export/<ad> sim/gz_worlds/village_objects.csv --located <ad>_ekf`.
+  - Harita (`uv sync --group detect --group map`): `tools/build_map.py data/export/<ad>` → `tools/align_map.py data/export/<ad> sim/gz_worlds/village_objects.csv`.
   - Projenin ROS paketlerini derleme (repo kökünde, `px4_ws` yüklüyken): `.venv/bin/python -m colcon build --base-paths ros --symlink-install`. colcon'u venv Python'uyla çalıştırmak node'ların ilk satırına venv Python'unu yazar; node'lar venv açık olmasa da `usm_core`'u (ve ileride torch'u) görür. Düz `colcon build` sistem Python'unu yazar ve `usm_core` import edilemez.
   - Kapatma: her terminalde **`Ctrl+C`**. Pencereyi X ile kapatmak PX4/Gazebo'yu arka planda açık bırakır.
 - GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
@@ -70,7 +72,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - Şerit tarama rotası: kamera görüş alanına ve istenen örtüşmeye göre şerit aralığı ve çekim aralığı hesaplanır. Varsayılan h = 30 m (geçici; irtifa taramasıyla kesinleşir)
 - Görev sonunda RTL (eve dönüş + iniş)
 - rosbag2 (MCAP) kayıt: görüntü + EKF2 pozu + ölçülen gimbal açısı + zaman damgası + Gazebo gerçek pozları; dışa aktarma betiği
-- Offline tespit (tam çözünürlük, tiling) + VisDrone test-dev ölçümü
+- Offline tespit (tam kare; tiling irtifa taramasında denenecek) + VisDrone test-dev ölçümü
 - Canlı tespit node'u (TensorRT) + canlı konum; Rerun ile canlı görselleştirme; hız, gecikme ve VRAM ölçümü
 - Piksel → zemin koordinatı (Python, gimbal açısı ve sınıf yüksekliği dahil) + pytest
 - Tespit birleştirme (konum tabanlı)
@@ -159,10 +161,9 @@ En büyük takvim riski hafta 1 (PX4/Gazebo/gimbal ilk kez kuruluyor).
 
 **Kararlar: HER ŞEYİ SOR.** Kod yazmadan, dosya oluşturmadan, paket kurmadan, komut çalıştırmadan önce ne yapacağını ve nedenini kısaca öner, onay bekle. Seçenek varsa 2-3 seçeneği artı/eksileriyle sun. Sorular numaralı düz metin olarak sorulur: ne karar veriliyor, neden önemli, her seçenek pratikte ne demek, öneri.
 
-**Kod yazımı: KARIŞIK.**
-- Claude yazabilir (onaydan sonra): kurulum betikleri, launch dosyaları, ROS 2 paket iskeleti, yapılandırma dosyaları, rosbag dışa aktarma ve veri dönüştürme betikleri, Rerun görselleştirme, rapor şablonu, grafik/çizim betikleri, TensorRT dönüşüm betiği.
-- **Oğuz yazar** (Claude matematiği ve mantığı açıklar, küçük örnek verir ama tam dosyayı yazmaz): piksel → zemin koordinatı hesabı (konumlandırma), tespit birleştirme, şerit rota hesabı (şerit aralığı ve fotoğraf örtüşmesi), harita-dünya hizalaması (Umeyama/Sim(3)) ve tespitlerin haritaya yerleştirilmesi, konum metriklerinin hesabı (recall, precision, konum hatası; AP hariç, o pycocotools ile).
-- Oğuz açıkça "yaz" demedikçe çekirdek modüllerde tam dosya yazılmaz.
+**Kod yazımı ve sorumluluk (2026-11-05'te değişti).**
+- **Oğuz mimariyi şekillendirir:** parçaların yapısı, bağlantıları ve ödünleşimleri ona sorulur. Hesap alıştırması veya kontrol sorusu verilmez.
+- **Claude yazar ve matematiği çözer** (mimari kararından sonra): konumlandırma, birleştirme, harita hizalaması, konum metrikleri dahil bütün modüller. Her modülde neden öyle yapıldığı ve sınırları açıklanır; Oğuz bunları mülakatta anlatabilmeli.
 - Çekirdek matematik ROS'tan bağımsız saf Python paketi olarak tutulur (CI'da ROS olmadan test edilir; ileride C++'a taşınır).
 
 **Açıklama: DETAYLI.** Her adımda "neden"i anlat. Matematik varsa formülü ve geometrik anlamını açıkla. Kullanılan kavramları (ör. offboard mode, NED/ENU, gimbal açıları, kamera iç/dış parametreleri) ilk geçtiği yerde kısaca tanımla.

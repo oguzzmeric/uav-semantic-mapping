@@ -4,6 +4,61 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-11-05 — Konumlandırma, birleştirme, nesne düzeyi ölçüm, COLMAP başlangıcı (Hafta 3)
+
+**Yapıldı**
+- Çalışma kuralı değişti: Oğuz mimariyi şekillendirir, çekirdek modülleri Claude yazar ve açıklar (CLAUDE.md §6). Bağımsız yazım kalktı: `projection.py` ile `geolocation.py`'yi aynı kişi yazdı, gidiş-dönüş testi bu yüzden tek başına kanıt değil. Bağımsız kanıt, görüntüden gelen model kutuları.
+- ⑥ `usm_core/geolocation.py` + `tools/geolocate.py`: piksel → ışın → `R(q)` → düzlem kesişimi. Kutu merkezi, nesne yüksekliğinin yarısındaki düzlemle kesiştirilir (`CLASS_HEIGHTS`: 1,8 m varsayım; nesnenin gerçek boyu kullanılmaz).
+- ⑦ `usm_core/merging.py` + `tools/merge_objects.py`: uçuş sırasına göre sınıf başına kümeleme (canlıda da çalışabilir); kadraj kenarına değen kutular dışarıda; konum medyan. Ayarlar `seed 1`'de seçildi: yarıçap 2 m, en az 5 kare.
+- ⑪ `usm_core/metrics.py` + `tools/eval_objects.py`: en iyi bire bir eşleştirme, sınır 2 m.
+- ⑧ `tools/build_map.py` (pycolmap 4.2.1, CPU, `map` uv grubu; 2 m'de bir ~297 fotoğraf, EKF2 yalnızca çift seçer, haritaya girmez), ⑨ `usm_core/alignment.py` (Umeyama) + `tools/align_map.py`. `tools/frames.py`: kare seçimi tek yerde (`truth_coco.json` aynı kaldı).
+- VisDrone indi: test-dev 1610, train 6471 görüntü, `datasets/visdrone/` (repoda değil). Henüz ölçülmedi.
+- Commit geçmişi tarandı: model, veri, şifre yok. **Repoda henüz GitHub bağlantısı yok** (bütün commit'ler yerel); karar: önce gizli repo, Oğuz'un adımları bekliyor.
+- Toplam 93 test geçiyor.
+
+**Ölçüldü** (simülasyonda, `seed 1` geliştirme verisi; resmi değil)
+
+Kutu başına yatay hata (medyan / p95, m):
+
+| Girdi | Poz | Yükseklik | İnsan | Araç |
+|---|---|---|---|---|
+| Gerçek kutu | Gerçek | Var | 0,054 / 0,193 | 0,093 / 0,934 |
+| Gerçek kutu | EKF2 | Var | 0,079 / 0,198 | 0,101 / 0,911 |
+| Gerçek kutu | EKF2 | Yok | 0,324 / 0,541 | 0,299 / 0,602 |
+| Model, tiling'siz | EKF2 | Var | 0,093 / 0,219 | 0,161 / 1,837 |
+| Model, tiling'li | EKF2 | Var | 0,095 / 0,278 | 0,152 / 1,757 |
+
+Model araç kutuları: kenara değen 591 kutu medyan 0,937 / p95 2,377 m, değmeyen 1384 kutu 0,120 / 0,517 m.
+
+Nesne düzeyi (EKF2, yarıçap 2 m, en az 5 kare):
+
+| | Sınıf | Rapor | Recall | Precision | Medyan hata (m) | En kötü (m) |
+|---|---|---|---|---|---|---|
+| Tiling'siz | İnsan | 20 | %100 | %100 | 0,062 | 0,176 |
+| Tiling'siz | Araç | 14 | %100 | %85,7 | 0,092 | 0,275 |
+| Tiling'li | İnsan | 21 | %100 | %95,2 | 0,061 | 0,194 |
+| Tiling'li | Araç | 12 | %100 | %100 | 0,077 | 0,246 |
+
+- Tiling'siz 2 yanlış araç raporu: `vehicle_04` ve `vehicle_05`'in 1,5–1,7 m yanında ikinci kayıtlar; sebebi incelenmedi. Tiling'li yanlış insan raporu: `vehicle_06` üstünde 29 kare.
+- Nesne düzeyinde yükseklik düzeltmesinin etkisi kare başına olduğundan küçük (insan 0,126 → 0,062 m; araçta belirgin fayda yok: 0,076 vs 0,092 m). Muhtemel sebep: farklı yönlerden görülme hataları dengeliyor; ölçülmedi.
+- COLMAP, 25 fotoğraflık deneme: hepsi kayıtlı, 51 218 nokta, yeniden izdüşüm 0,11 px; kameralar gerçek konuma medyan 0,058 m (hizalamada kullanılmadı). Tam harita çalışıyor.
+
+**Kararlar**
+- Varsayılan tespit tiling'siz (nesne düzeyinde kazanç görülmedi, 3 kat yavaş). İrtifa taramasında 40 m'de yeniden denenecek. Tek uçuşa dayanıyor; `seed 2`'den önce gözden geçirilebilir.
+- TensorRT şimdilik atlandı: resmi sayıları etkilemiyor. 14 Kasım'a kadar zaman kalırsa dönülür.
+- Bugünkü sayılar ayarları seçtiğimiz uçuştan: iyimser olabilir. Köy kolay, gimbal büyük ihtimalle gürültüsüz. Resmi sayılar `seed 2`'den.
+
+**Sıradaki adım**
+- Tam harita sonucu + hizalama; bilinen noktalarda doğruluk.
+- VisDrone sınıf eşlemesi kararı ve ölçüm.
+- `seed 2` resmi uçuşu, canlı Haritacı, ⑩ rapor.
+
+**Açık kararlar**
+- GitHub repo adresi ve yükleme (Oğuz). Herkese açmadan önce: commit ve `package.xml`'deki e-posta.
+- Canlıdaki yavaşlamanın kaynağı (düşük öncelik).
+
+---
+
 ## 2026-11-04 — Canlı tespit uçuşta çalıştı (4 Kasım ara kontrolü geçti)
 
 **Yapıldı**
