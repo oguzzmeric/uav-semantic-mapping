@@ -1,0 +1,17 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core:
+    # The core math and its tests need neither ROS, torch nor a GPU.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --frozen --no-default-groups --group dev
+      - run: uv run --frozen --no-default-groups --group dev pytest -q

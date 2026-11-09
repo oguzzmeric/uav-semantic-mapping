@@ -830,10 +830,13 @@ wheels = [
 name = "uav-semantic-mapping"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+]
 
 [package.dev-dependencies]
 detect = [
-    { name = "numpy" },
     { name = "pyarrow" },
     { name = "pycocotools" },
     { name = "rerun-sdk" },
@@ -854,10 +857,13 @@ report = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = "<2" },
+    { name = "scipy", specifier = ">=1.17.1" },
+]
 
 [package.metadata.requires-dev]
 detect = [
-    { name = "numpy", specifier = "<2" },
     { name = "pyarrow", specifier = "<26" },
     { name = "pycocotools", specifier = ">=2.0.11" },
     { name = "rerun-sdk", specifier = ">=0.23.1,<0.24" },

@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Autonomous UAV semantic mapping: detection, geolocation and mapping of people and vehicles."
 license = "AGPL-3.0-only"
 requires-python = ">=3.12,<3.13"  # ROS 2 Jazzy's system Python
-dependencies = []
+# The core (usm_core) and its tests; CI installs only these and the dev group.
+dependencies = [
+    "numpy<2",  # ROS 2 Jazzy's cv_bridge and message libraries are built against NumPy 1.x
+    "scipy>=1.17.1",
+]
 
 [dependency-groups]
 dev = ["pytest>=8"]
@@ -13,7 +17,6 @@ detect = [
     "ultralytics>=8.3.155,<8.4",  # the model was trained with 8.3.155
     "torch==2.10.*",
     "torchvision",
-    "numpy<2",  # ROS 2 Jazzy's cv_bridge is built against NumPy 1.x
     "rerun-sdk>=0.23.1,<0.24",  # live visualisation; newer releases need NumPy 2
     "pyarrow<26",  # rerun's dependency; 26 refuses to import with NumPy 1.x
     "setuptools<80",  # torch pulls it in; colcon --symlink-install needs develop --editable
