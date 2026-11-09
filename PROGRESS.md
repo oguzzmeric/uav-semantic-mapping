@@ -40,6 +40,28 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - `person_07` 112 karenin yalnızca 10'unda bulundu (%9), nesne düzeyinde yine bulundu; sebebi incelenmedi.
 - Hedefler (recall ≥ %80, hata ≤ 2 m) bu kolay köyde rahat aşıldı. Gerçek veride (VisDrone) tespitin çok daha zayıf olduğu birlikte raporlanacak.
 
+- **⑩ uçuş sonu rapor:** `tools/report.py` + `tools/templates/report.html.j2` (Jinja2, tek HTML, resimler gömülü; görev, kuşbakışı harita, nesne listesi, harita kalitesi; `--truth` ile simülasyon değerlendirmesi). `align_map.py` sonuçlarını `alignment.json`'a yazıyor, kameraları uçuş sırasıyla saklıyor, gerçek konum isteğe bağlı (`--objects`). `seed 2` raporu üretildi (1,4 MB). Gerçek konumsuz kullanım henüz denenmedi.
+- Disk 5,4 GB'a düşmüştü: Oğuz VisDrone zip'lerini, `seed 1` kaydını ve katlanmış ilk haritayı sildi (12 GB'a çıktı). İrtifa taraması haritasız yapıldı (karar).
+- `fly_survey.py`: 20 m'nin ilk denemesi, kaydedicinin açılış kontrolü köprüyü henüz göremediği için yanlış alarmla durdu (kamera bir saniye sonra kayda girmişti). Artık kaydedicinin kameraya gerçekten abone olması bekleniyor.
+
+**İrtifa taraması** (simülasyonda, `seed 2`, donmuş ayarlar, tiling'siz):
+
+| | 20 m | 30 m | 40 m |
+|---|---|---|---|
+| Tarama süresi | 229 s | 175 s | 159 s |
+| İnsan boyutu (medyan) | 73 × 56 px | 47 × 37 px | 35 × 28 px |
+| Kare düzeyi insan P / R / AP50 | 0,859 / 0,816 / 0,889 | 0,952 / 0,806 / 0,932 | 0,940 / 0,714 / 0,916 |
+| Kare düzeyi araç P / R / AP50 | 0,982 / 0,973 / 0,977 | 0,976 / 0,974 / 0,970 | 0,972 / 0,984 / 0,980 |
+| Nesne düzeyi insan | 20/20, P %95,2, medyan 0,070 m | 20/20, P %95,2, medyan 0,061 m | 20/20, P %100, medyan 0,066 m |
+| Nesne düzeyi araç | 12/12, P %100, medyan 0,054 m | 12/12, P %92,3, medyan 0,065 m | 12/12, P %100, medyan 0,051 m |
+| EKF2 yatay medyan | 0,068 m | 0,065 m | 0,064 m |
+
+- 40 m tiling'li: kare düzeyi insan R 0,869 (+15,5 puan; 30 m'de +6,6), nesne düzeyinde fark yok (20/20, 1 yanlış insan).
+- Nesne düzeyinde köy irtifaları ayırt edemiyor (hepsi 20/20, 12/12): her nesne onlarca karede görülüyor. Konum hatası irtifayla büyümüyor (6–8 cm): simülasyonda gimbal büyük ihtimalle gürültüsüz, EKF2 hatası küçük → irtifa etkisi hassasiyet analiziyle (yapay gürültü) ölçülecek.
+- 20 m'de kare düzeyi insan yanlış alarmı artıyor (212); sebebi incelenmedi.
+- Aynı yanlış insan raporu üç irtifada da aynı aracın üstünde (n ≈ 23, e ≈ 15,5): 20 m'de 13 karede, 30 m'de 5 (en az 5 kare sınırında).
+- Öneri: 30 m'de kalmak (kare düzeyinde en dengeli; nesne düzeyinde hepsi aynı).
+
 **Test uçuşu (`seed 2`) öncesi donan ayarlar** (bu uçuşun sonuçları görülmeden yazıldı; sonradan değişirse kayda geçer):
 - Tespit: tam kare (tiling yok), skor ≥ 0,25, NMS IoU 0,7, imgsz 1280, fp32.
 - Konumlandırma: kutu merkezi, sınıf yüksekliği 1,8 m (yarısındaki düzlem), EKF2 pozu.
