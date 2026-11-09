@@ -36,7 +36,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
   - Görev: `ros2 run usm_mission survey_mission`.
   - Kare düzeyi tespit ölçümü (repo kökünde, `.venv/bin/python`): `tools/truth_boxes.py data/export/<ad> sim/gz_worlds/village_objects.csv` → `tools/detect_offline.py data/export/<ad> --run <ad> [--tiled]` → `tools/eval_detections.py data/export/<ad> --run <ad>`.
   - Nesne düzeyi hat (aynı şekilde): `tools/geolocate.py data/export/<ad> sim/gz_worlds/village_objects.csv --run <ad>` → `tools/merge_objects.py data/export/<ad> --located <ad>_ekf` → `tools/eval_objects.py data/export/<ad> sim/gz_worlds/village_objects.csv --located <ad>_ekf`.
-  - Harita (`uv sync --group detect --group map`): `tools/build_map.py data/export/<ad>` → `tools/align_map.py data/export/<ad> sim/gz_worlds/village_objects.csv`.
+  - Harita (`uv sync --group detect --group map`): `tools/build_map.py data/export/<ad>` (eşleştirmeyi tekrarlamadan yeniden kurmak için `--reuse <klasör> --out <yeni>`) → `tools/align_map.py data/export/<ad> sim/gz_worlds/village_objects.csv [--map <klasör>]` → 3B görüntü: `tools/view_map.py data/export/<ad> --map <klasör> --located <ad>_ekf`.
   - Projenin ROS paketlerini derleme (repo kökünde, `px4_ws` yüklüyken): `.venv/bin/python -m colcon build --base-paths ros --symlink-install`. colcon'u venv Python'uyla çalıştırmak node'ların ilk satırına venv Python'unu yazar; node'lar venv açık olmasa da `usm_core`'u (ve ileride torch'u) görür. Düz `colcon build` sistem Python'unu yazar ve `usm_core` import edilemez.
   - Kapatma: her terminalde **`Ctrl+C`**. Pencereyi X ile kapatmak PX4/Gazebo'yu arka planda açık bırakır.
 - GPU: NVIDIA GTX 1650 **4 GB VRAM**, sürücü 595 (`nvidia-driver-595-open`, imzalı çekirdek modülü), CUDA 13.2. Hibrit grafik: PRIME `on-demand` (masaüstünü Intel çizer; Gazebo NVIDIA'da çalıştırılmak için offload ortam değişkenleriyle başlatılır). CPU: i7-11800H (8 çekirdek). RAM: 16 GB. Disk: ~50 GB boş.
@@ -63,6 +63,7 @@ Otonom semantik haritalama drone'u (simülasyon + gerçek veri): drone bir alan�
 - **`rr.spawn` viewer'ı PATH'te arar:** venv açık değilken `.venv/bin` PATH'te olmaz, node PATH'e ekler. Rerun yerleşimi diske kaydeder (`~/.local/share/rerun/blueprints/`) ve açılışta geri yükler; yeni yerleşim `send_blueprint(make_active=True)` ile gönderilir.
 - **`use_sim_time` + uzun callback:** rclpy `/clock`'u node'un varsayılan callback grubunda işler. Tek iş parçacığında uzun bir callback sırasında sim saati durur ve gecikme ~0 ölçülür; `live_detector` bu yüzden iki iş parçacığı ve ayrı callback grubu kullanır.
 - **Ctrl+C `ros2 launch` altındaki sürece iki kez ulaşır** (terminal + launch): kapanış kodu ikinci sinyali yok saymalı.
+- **Köyün zemin karoları birbirinin aynısı** (20 m, iki doku, dört yön): COLMAP 20 m uzaktaki karoları aynı yer sandı ve harita katlandı (2026-11-05). `build_map.py` bu yüzden EKF2 beklentisinden > 5 m sapan çiftleri atar, `align_map.py` sapan kameraları hizalamadan çıkarır. Düşük yeniden izdüşüm hatası (0,11 px) haritanın doğru olduğunu göstermez; hizalama ölçümü şart.
 - **Test betikleri açık bir simülasyona dokunmamalı:** başlamadan önce PX4/Gazebo çalışıyor mu kontrol edilir (2026-10-26'da kontrolsüz bir test Oğuz'un açık simülasyonunu kapattı).
 
 ## 3. Kapsam ve öncelik

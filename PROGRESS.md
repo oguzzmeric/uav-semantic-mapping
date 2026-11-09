@@ -41,7 +41,12 @@ Nesne düzeyi (EKF2, yarıçap 2 m, en az 5 kare):
 
 - Tiling'siz 2 yanlış araç raporu: `vehicle_04` ve `vehicle_05`'in 1,5–1,7 m yanında ikinci kayıtlar; sebebi incelenmedi. Tiling'li yanlış insan raporu: `vehicle_06` üstünde 29 kare.
 - Nesne düzeyinde yükseklik düzeltmesinin etkisi kare başına olduğundan küçük (insan 0,126 → 0,062 m; araçta belirgin fayda yok: 0,076 vs 0,092 m). Muhtemel sebep: farklı yönlerden görülme hataları dengeliyor; ölçülmedi.
-- COLMAP, 25 fotoğraflık deneme: hepsi kayıtlı, 51 218 nokta, yeniden izdüşüm 0,11 px; kameralar gerçek konuma medyan 0,058 m (hizalamada kullanılmadı). Tam harita çalışıyor.
+- COLMAP, 25 fotoğraflık deneme: hepsi kayıtlı, 51 218 nokta, yeniden izdüşüm 0,11 px; kameralar gerçek konuma medyan 0,058 m (hizalamada kullanılmadı).
+- **COLMAP tam harita (297 fotoğraf, 2 m aralık):** özellik 2,8 + eşleştirme 9,2 + haritalama 13,5 dk; 297/297 fotoğraf, 404 353 nokta, 0,11 px. **Ama harita katlanmıştı:** kameralar gerçek konuma medyan 21,2 m, zemin 7,65 m yukarıda, kuzey-güney kapsamı −36…+20 m (gerçek −39…+39). Sebep: zemin karoları (20 m, iki doku, dört yön) birbirinin aynısı; doğrulanmış 4970 çiftin 791'i (%15,9) EKF2 beklentisinden > 2,7 m sapıyordu, medyan 19,1 m (bir karo), ortalama ~3000 eşleşmeyle (COLMAP'in doğrulaması eleyemiyor).
+- **Düzeltme 1 (karar a):** EKF2 beklentisinden > 5 m sapan çiftler haritalamadan önce atıldı (622 çift). EKF2 haritanın hesabına hâlâ girmiyor, ama artık çift de eliyor: bağımsızlık bir miktar azaldı (raporda yazılacak). Haritalama 11,5 dk.
+- **Düzeltme 2:** 12 kamera (%4) yine yanlış yerde kaldı (medyan 24 m, alanın kuzey ucunda, n ≈ 34–39) ve en küçük kareler hizalamasını bozuyordu (medyan 1,4 m) → `robust_umeyama`: medyan uzaklığın 3 katından uzak kameraları dışarıda bırakıp yeniden uydurur; EKF2'ye göre çalışır, gerçek konumu kullanmaz. Eşik bu uçuşa bakılarak seçildi.
+- **Sonuç (285 kamera):** kameralar gerçek konuma medyan **0,068**, p95 0,109 m (yatay 0,049 / dikey 0,047); açık zemin |d| medyan **0,091** m; ev tepeleri (en yüksek %1) 7,40 / 6,67 / 9,52 m (gerçek 7,69 / 7,23 / 9,17). Bina köşesi ölçümü yapılmadı. Ölçek 8,86 m/birim.
+- 3B görüntüleyici `tools/view_map.py` (harita + yol + nesneler, Rerun). Pencere kodla test edildi, Oğuz'un ekranında görülmedi.
 
 **Kararlar**
 - Varsayılan tespit tiling'siz (nesne düzeyinde kazanç görülmedi, 3 kat yavaş). İrtifa taramasında 40 m'de yeniden denenecek. Tek uçuşa dayanıyor; `seed 2`'den önce gözden geçirilebilir.
@@ -49,8 +54,8 @@ Nesne düzeyi (EKF2, yarıçap 2 m, en az 5 kare):
 - Bugünkü sayılar ayarları seçtiğimiz uçuştan: iyimser olabilir. Köy kolay, gimbal büyük ihtimalle gürültüsüz. Resmi sayılar `seed 2`'den.
 
 **Sıradaki adım**
-- Tam harita sonucu + hizalama; bilinen noktalarda doğruluk.
 - VisDrone sınıf eşlemesi kararı ve ölçüm.
+- Harita: bina köşelerinde doğruluk, `model_aligner` çapraz kontrolü (zaman kalırsa).
 - `seed 2` resmi uçuşu, canlı Haritacı, ⑩ rapor.
 
 **Açık kararlar**
