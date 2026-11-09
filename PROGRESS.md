@@ -62,6 +62,31 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - Aynı yanlış insan raporu üç irtifada da aynı aracın üstünde (n ≈ 23, e ≈ 15,5): 20 m'de 13 karede, 30 m'de 5 (en az 5 kare sınırında).
 - Öneri: 30 m'de kalmak (kare düzeyinde en dengeli; nesne düzeyinde hepsi aynı).
 
+**Hata analizi yöntemi** (çalıştırılmadan önce yazıldı; `seed 2`, 20/30/40 m, donmuş ayarlar):
+- *Hata ayrıştırma*, kutu başına ve nesne düzeyinde yatay hata: (A) gerçek kutu + gerçek poz; (B) gerçek kutu + EKF2; (C) model kutusu + EKF2; ayrıca B ve C yükseklik düzeltmesiz. A → B farkı poz kestirimi, B → C farkı tespit, düzeltmesiz satırlar nesne yüksekliğinin payı. A'da kalan: kutu merkezi ≠ nesne merkezi ve varsayılan 1,8 m boy.
+- *Açı hassasiyeti*: kameraya yatay bir eksen etrafında δ ∈ {1°, 3°, 5°} eğim. Sistematik: her karede aynı yön (doğu ekseni etrafında). Rastgele: her karede aynı δ, yönü düzgün dağılımlı rastgele (tohum 0). Model kutusu + EKF2.
+- *Yükseklik hassasiyeti*: kamera Δh ∈ {0,5; 1; 2; 5} m daha yüksek sanılır (sistematik).
+- Ölçülen: kutu başına kayma |Δp| (bozulmuş − bozulmamış konum), teoriyle aynı grafikte: açı için Δd ≈ h·δ/cos²θ, yükseklik için Δd = Δh·tanθ (h: kameranın nesne orta düzlemine yüksekliği, θ: kutu ışınının nadirden açısı; kutu başına hesaplanıp medyanı alınır). Ayrıca nesne düzeyinde recall, precision ve medyan hata.
+
+**Hata analizi sonuçları** (`tools/analyze_errors.py`, simülasyonda, `seed 2`; tablo ve grafik `data/analysis/`):
+
+Hata ayrıştırma, insan, kutu başına medyan / nesne düzeyi medyan (m):
+
+| | 20 m | 30 m | 40 m |
+|---|---|---|---|
+| A gerçek kutu + gerçek poz | 0,049 / 0,035 | 0,050 / 0,035 | 0,050 / 0,032 |
+| B gerçek kutu + EKF2 | 0,086 / 0,069 | 0,089 / 0,063 | 0,085 / 0,056 |
+| C model kutusu + EKF2 | 0,096 / 0,070 | 0,090 / 0,061 | 0,099 / 0,066 |
+| B yükseklik düzeltmesiz | 0,303 / 0,080 | 0,291 / 0,082 | 0,302 / 0,085 |
+| C yükseklik düzeltmesiz | 0,331 / 0,121 | 0,331 / 0,113 | 0,345 / 0,148 |
+
+- Poz kestirimi (A → B) en büyük pay: kutu başına ~+0,04 m. Tespit (B → C) ~+0,01 m. Yükseklik düzeltmesi kutu başına hatayı ~3 kat küçültüyor; nesne düzeyinde fark azalıyor (birleştirme farklı yönlerden görülen hataları dengeliyor). A'da kalan ~0,05 m: kutu merkezi ≠ nesne merkezi ve varsayılan 1,8 m boy. Araçlarda p95 ~0,9–2,0 m: kenarda kesilen kutular (birleştirme bunları dışarıda bırakıyor).
+- **Açı hassasiyeti:** kutu başına kayma irtifa ve δ ile doğrusal; ölçülen, h·δ/cos²θ'nın ~%9 altında (formül, eğim yönüne dik konumdaki kutular için üst sınır: orada h·δ/cosθ). 30 m'de 1° → 0,53 m (teori 0,58). Sistematik eğim birleştirmede azalmıyor ve 2 m'yi geçince nesne recall'u çöküyor (30 m'de 5°: %0; 40 m'de 3°: %0; 20 m'de 5° hâlâ %100). Rastgele eğim 1°'de birleştirmede ~5 kat küçülüyor (30 m: nesne hatası 0,105 vs 0,536 m), ama kayma birleştirme yarıçapına yaklaşınca (30 m'de 3°) kümeler bölünüyor ve hata büyüyor.
+- **Yükseklik hassasiyeti:** ölçülen = Δh·tanθ (geometri kesin; kodun doğrulaması). Medyan tanθ ≈ 0,36. Nesne düzeyinde etki küçük (30 m, +2 m → 0,24 m): içe/dışa kaymalar farklı şeritlerden dengeleniyor.
+- Pratik sınır: sistematik açı hatası h·δ < 2 m olmalı (30 m'de δ < ~3,8°).
+
+**Karar:** canlı Haritacı şimdilik kesildi (ölçümü etkilemiyor; zaman README ve videoya). Sıra: CI → README (12–14 Kas) → video (15–19 Kas).
+
 **Test uçuşu (`seed 2`) öncesi donan ayarlar** (bu uçuşun sonuçları görülmeden yazıldı; sonradan değişirse kayda geçer):
 - Tespit: tam kare (tiling yok), skor ≥ 0,25, NMS IoU 0,7, imgsz 1280, fp32.
 - Konumlandırma: kutu merkezi, sınıf yüksekliği 1,8 m (yarısındaki düzlem), EKF2 pozu.
