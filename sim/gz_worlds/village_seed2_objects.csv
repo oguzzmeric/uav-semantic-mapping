@@ -1,0 +1,36 @@
+name,class,model,n,e,d,yaw_deg,height,length,width
+house_00,building,House 1,-16.116,-13.911,0.000,90.0,7.69,16.49,12.93
+house_01,building,House 2,1.473,-12.939,0.000,-180.0,7.23,12.71,9.77
+house_02,building,House 3,-17.479,1.840,0.000,-180.0,9.17,13.18,8.71
+vehicle_00,vehicle,Hatchback,11.685,-10.476,0.000,-90.0,1.57,4.0,2.14
+vehicle_01,vehicle,Hatchback blue,22.698,15.431,0.000,0.0,1.57,4.0,2.14
+vehicle_02,vehicle,Hatchback red,-12.633,11.931,0.000,0.0,1.57,4.0,2.14
+vehicle_03,vehicle,Pickup,11.685,-1.843,0.000,90.0,1.87,5.66,2.47
+vehicle_04,vehicle,SUV,-2.279,15.431,0.000,-180.0,2.16,5.02,2.6
+vehicle_05,vehicle,Hatchback,15.185,-6.627,0.000,-90.0,1.57,4.0,2.14
+vehicle_06,vehicle,Hatchback blue,15.185,1.013,0.000,90.0,1.57,4.0,2.14
+vehicle_07,vehicle,Hatchback red,15.185,-18.676,0.000,-90.0,1.57,4.0,2.14
+vehicle_08,vehicle,Pickup,-20.885,15.431,0.000,0.0,1.87,5.66,2.47
+vehicle_09,vehicle,SUV,11.685,23.866,0.000,90.0,2.16,5.02,2.6
+vehicle_10,vehicle,Hatchback,-15.246,15.431,0.000,0.0,1.57,4.0,2.14
+vehicle_11,vehicle,Hatchback blue,11.685,4.928,0.000,-90.0,1.57,4.0,2.14
+person_00,person,Walking person,23.245,10.065,0.000,-117.8,1.87,0.55,0.88
+person_01,person,Standing person,16.684,-10.875,0.000,-93.2,1.92,0.54,0.36
+person_02,person,Casual female,9.507,-19.776,0.000,-123.1,1.67,0.61,0.57
+person_03,person,MaleVisitorOnPhone,8.364,26.404,0.000,-107.9,1.74,0.46,0.51
+person_04,person,Walking person,-14.475,22.328,0.000,96.7,1.87,0.55,0.88
+person_05,person,Standing person,-16.822,-24.623,0.000,-60.7,1.92,0.54,0.36
+person_06,person,Casual female,1.282,18.035,0.000,24.5,1.67,0.61,0.57
+person_07,person,MaleVisitorOnPhone,-20.162,21.028,0.000,92.8,1.74,0.46,0.51
+person_08,person,Walking person,-25.023,-16.140,0.000,-167.5,1.87,0.55,0.88
+person_09,person,Standing person,7.119,17.797,0.000,-165.7,1.92,0.54,0.36
+person_10,person,Casual female,11.373,-15.170,0.000,18.3,1.67,0.61,0.57
+person_11,person,MaleVisitorOnPhone,-26.286,8.861,0.000,71.4,1.74,0.46,0.51
+person_12,person,Walking person,7.024,8.125,0.000,2.8,1.87,0.55,0.88
+person_13,person,Standing person,-1.392,11.348,0.000,-107.2,1.92,0.54,0.36
+person_14,person,Casual female,18.093,15.244,0.000,-30.8,1.67,0.61,0.57
+person_15,person,MaleVisitorOnPhone,25.526,-17.557,0.000,-82.1,1.74,0.46,0.51
+person_16,person,Walking person,-2.023,22.359,0.000,165.0,1.87,0.55,0.88
+person_17,person,Standing person,22.538,-12.469,0.000,65.2,1.92,0.54,0.36
+person_18,person,Casual female,18.864,-16.391,0.000,162.3,1.67,0.61,0.57
+person_19,person,MaleVisitorOnPhone,20.745,-27.293,0.000,-161.2,1.74,0.46,0.51
