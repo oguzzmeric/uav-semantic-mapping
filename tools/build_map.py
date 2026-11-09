@@ -22,7 +22,7 @@ import pycolmap
 from frames import is_survey_frame, read_frames
 from usm_core.projection import rotation_matrix
 
-ALTITUDE = 30.0
+ALTITUDE = 30.0  # m, default survey altitude
 # Pairs: photos overlap up to one footprint apart (34.6 x 19.5 m at 30 m). Compare with the nearest
 # neighbours only; on a repeating texture, far-apart photos mostly add false matches.
 MAX_PAIR_DISTANCE = 25.0  # m
@@ -31,19 +31,19 @@ MAX_SHIFT_ERROR = 5.0     # m on the ground; correct pairs were within 3 m, wron
 MIN_INLIERS = 15
 
 
-def select_photos(rows: list[dict], spacing: float) -> list[dict]:
+def select_photos(rows: list[dict], spacing: float, altitude: float) -> list[dict]:
     """Survey frames at least `spacing` metres apart along the path."""
     selected = []
-    for row in (r for r in rows if is_survey_frame(r, ALTITUDE)):
+    for row in (r for r in rows if is_survey_frame(r, altitude)):
         here = np.array([float(row['ekf_n']), float(row['ekf_e'])])
         if not selected or np.linalg.norm(here - selected[-1][1]) >= spacing:
             selected.append((row, here))
     return [row for row, _ in selected]
 
 
-def reject_false_pairs(database, photos: dict[str, dict], fx: float) -> tuple[int, int]:
+def reject_false_pairs(database, photos: dict[str, dict], fx: float, altitude: float) -> tuple[int, int]:
     """Drop verified pairs whose image shift disagrees with the EKF2 positions; (kept, dropped)."""
-    px_per_m = fx / ALTITUDE
+    px_per_m = fx / altitude
     kept = dropped = 0
     with pycolmap.Database.open(database) as db:
         images = {i.image_id: i.name for i in db.read_all_images()}
@@ -71,6 +71,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('export')
     parser.add_argument('--spacing', type=float, default=2.0, help='metres between photos')
+    parser.add_argument('--altitude', type=float, default=ALTITUDE, help='survey altitude (m)')
     parser.add_argument('--limit', type=int, help='use only the first N photos, for a quick test')
     parser.add_argument('--out', default='map', help='output folder inside the export')
     parser.add_argument('--reuse', help='start from the matches of this earlier map folder')
@@ -79,7 +80,7 @@ def main():
 
     export = Path(args.export)
     camera = json.loads((export / 'camera.json').read_text())
-    photos = select_photos(read_frames(export / 'frames.csv'), args.spacing)[:args.limit]
+    photos = select_photos(read_frames(export / 'frames.csv'), args.spacing, args.altitude)[:args.limit]
     names = [p['image'] for p in photos]
     print(f'{len(names)} photos, {args.spacing} m apart', flush=True)
 
@@ -115,7 +116,7 @@ def main():
         print(f'matching: {time.perf_counter() - t0:.0f} s', flush=True)
 
     if not args.no_reject:
-        kept, dropped = reject_false_pairs(database, {p['image']: p for p in photos}, camera['fx'])
+        kept, dropped = reject_false_pairs(database, {p['image']: p for p in photos}, camera['fx'], args.altitude)
         print(f'pairs kept {kept}, rejected {dropped}', flush=True)
 
     t0 = time.perf_counter()

@@ -85,9 +85,9 @@ def main():
         recorder = Process('record', f'{ROS} && ros2 launch usm_mission record.launch.py '
                                      f'out:={bag.relative_to(REPO)}', logs)
         started.append(recorder)
-        time.sleep(10)
-        if 'has no publisher' in recorder.log.read_text(errors='replace'):
-            raise SystemExit(f'the camera is not bridged; see {logs}')
+        # The recorder's own start-up check can run before discovery has seen the bridge, so
+        # wait for it to actually subscribe to the camera instead.
+        recorder.wait_for("Subscribed to topic '/camera/image/compressed'", 60)
         print('flying...', flush=True)
         mission = Process('mission', f'{ROS} && ros2 run usm_mission survey_mission --ros-args '
                                      f'-p altitude:={args.altitude}', logs)
