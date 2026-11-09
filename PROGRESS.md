@@ -87,6 +87,16 @@ Hata ayrıştırma, insan, kutu başına medyan / nesne düzeyi medyan (m):
 
 **Karar:** canlı Haritacı şimdilik kesildi (ölçümü etkilemiyor; zaman README ve videoya). Sıra: CI → README (12–14 Kas) → video (15–19 Kas).
 
+**Gün sonu (2026-11-09)**
+- CI: `.github/workflows/tests.yml`, her push'ta çekirdek testleri (ROS ve torch olmadan). Çekirdek NumPy ve SciPy'yi kullanıyordu ama bağımlılık olarak yazmıyordu (başka gruplar getirdiği için fark edilmemişti) → `dependencies` içine alındı. Temiz ortamda 94 test geçti; GitHub'daki ilk çalıştırmanın sonucu repo gizli olduğu için buradan görülmedi.
+- README (İngilizce): sonuçlar, mimari şeması (mermaid), hata ayrıştırma, hassasiyet, irtifa, canlı sistem, VisDrone, sınırlar, çalıştırma, lisanslar. Görseller simülasyondan (`docs/images/`); VisDrone veya TEKNOFEST görüntüsü yok. Yazarken ölçülenden fazlasını söyleyen üç cümle düzeltildi. Oğuz görselleri ve şemayı beğendi, yarın yeniden okuyacak.
+- E-posta: `package.xml` ve eski commit'lerdeki adres kalıyor; bu repoda bundan sonraki commit'ler GitHub'ın gizli adresiyle (`35642534+oguzzmeric@users.noreply.github.com`, yalnızca bu repo).
+- Hedef artık mümkün olduğunca erken bitirmek: yeni özellik yok.
+
+**Sıradaki adım**
+- README son okuma → repo herkese açılır (Oğuz, GitHub ayarlarından).
+- Demo video: gerçek görüntü bölümü için seçenekler (a) lisansı serbest drone videoları (Pexels/Pixabay, yalnızca tespit), (c) telemetrili veri seti (AU-AIR: lisans, telemetri, gimbal açısı kontrol edilecek; uygunsa gerçek görüntüde konum da). Oğuz c'yi mantıklı buldu; karar yarın.
+
 **Test uçuşu (`seed 2`) öncesi donan ayarlar** (bu uçuşun sonuçları görülmeden yazıldı; sonradan değişirse kayda geçer):
 - Tespit: tam kare (tiling yok), skor ≥ 0,25, NMS IoU 0,7, imgsz 1280, fp32.
 - Konumlandırma: kutu merkezi, sınıf yüksekliği 1,8 m (yarısındaki düzlem), EKF2 pozu.
