@@ -848,6 +848,10 @@ dev = [
 map = [
     { name = "pycolmap" },
 ]
+report = [
+    { name = "jinja2" },
+    { name = "matplotlib" },
+]
 
 [package.metadata]
 
@@ -864,6 +868,10 @@ detect = [
 ]
 dev = [{ name = "pytest", specifier = ">=8" }]
 map = [{ name = "pycolmap", specifier = ">=4.2.1" }]
+report = [
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
+]
 
 [[package]]
 name = "ultralytics"

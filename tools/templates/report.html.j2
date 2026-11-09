@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Survey report: {{ name }}</title>
+<style>
+  :root { --ink: #1d232a; --muted: #5d6874; --line: #dde2e7; --soft: #f4f6f8; --person: #e8433b; --vehicle: #2b8fe0; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .banner { background: #fff6dd; border: 1px solid #ecd58a; padding: 10px 14px; border-radius: 6px; margin: 16px 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--soft); border-radius: 6px; padding: 10px 14px; }
+  .tile b { display: block; font-size: 22px; }
+  .tile span { color: var(--muted); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num, th.num { text-align: right; }
+  .person { color: var(--person); font-weight: 600; }
+  .vehicle { color: var(--vehicle); font-weight: 600; }
+  .false { color: #b23b00; }
+  img { max-width: 100%; border-radius: 6px; }
+  code { background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  .note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Survey report</h1>
+<p class="sub">{{ name }} &middot; generated {{ created }} &middot; objects from <code>{{ located }}</code>, map from <code>{{ map_folder }}</code></p>
+{% if evaluation %}
+<div class="banner">Evaluated against the <b>simulated</b> ground truth of the Gazebo world. These numbers describe the simulation, not a real flight.</div>
+{% endif %}
+
+<h2>Mission</h2>
+<div class="tiles">
+  <div class="tile"><b>{{ "%.0f"|format(mission.duration) }} s</b><span>survey time</span></div>
+  <div class="tile"><b>{{ "%.1f"|format(mission.altitude) }} m</b><span>altitude (EKF2, median)</span></div>
+  <div class="tile"><b>{{ "%.0f"|format(mission.path_length) }} m</b><span>survey path</span></div>
+  <div class="tile"><b>{{ "%.0f"|format(mission.area) }} m²</b><span>area covered (approx.)</span></div>
+  <div class="tile"><b>{{ mission.frames }}</b><span>frames in the survey</span></div>
+  <div class="tile"><b><span class="person">{{ counts.person }}</span> / <span class="vehicle">{{ counts.vehicle }}</span></b><span>people / vehicles reported</span></div>
+</div>
+<p class="note">Ground footprint of one frame: {{ "%.1f"|format(mission.footprint[0]) }} × {{ "%.1f"|format(mission.footprint[1]) }} m.</p>
+
+<h2>Map</h2>
+<img alt="Top-down view of the aligned 3D map with the reported objects" src="data:image/png;base64,{{ map_png }}">
+<p class="note">Top-down view of the sparse 3D map, put in world coordinates by a Sim(3) fit of its cameras to EKF2. Circles: people, squares: vehicles{% if evaluation %}, crosses: true positions{% endif %}. 3D view: <code>.venv/bin/python tools/view_map.py data/export/{{ name }} --map {{ map_folder }} --located {{ located }}</code></p>
+
+<h2>Objects</h2>
+<table>
+  <tr><th class="num">#</th><th>class</th><th class="num">north (m)</th><th class="num">east (m)</th><th class="num">frames</th><th class="num">best score</th>{% if evaluation %}<th>true object</th><th class="num">error (m)</th>{% endif %}</tr>
+  {% for o in objects %}
+  <tr>
+    <td class="num">{{ o.id }}</td><td class="{{ o.cls }}">{{ o.cls }}</td>
+    <td class="num">{{ "%.2f"|format(o.n) }}</td><td class="num">{{ "%.2f"|format(o.e) }}</td>
+    <td class="num">{{ o.frames }}</td><td class="num">{{ "%.2f"|format(o.best_score) }}</td>
+    {% if evaluation %}
+      {% if o.truth %}<td>{{ o.truth }}</td><td class="num">{{ "%.3f"|format(o.error) }}</td>
+      {% else %}<td class="false">false alarm</td><td></td>{% endif %}
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+
+{% if evaluation %}
+<h2>Evaluation (simulation)</h2>
+<table>
+  <tr><th>class</th><th class="num">true objects</th><th class="num">reports</th><th class="num">recall</th><th class="num">precision</th><th class="num">error mean</th><th class="num">median</th><th class="num">max</th></tr>
+  {% for e in evaluation %}
+  <tr>
+    <td class="{{ e.cls }}">{{ e.cls }}</td><td class="num">{{ e.truths }}</td><td class="num">{{ e.reports }}</td>
+    <td class="num">{{ "%.1f"|format(100 * e.recall) }} %</td><td class="num">{{ "%.1f"|format(100 * e.precision) }} %</td>
+    <td class="num">{{ "%.3f"|format(e.mean) if e.mean is not none else "–" }} m</td>
+    <td class="num">{{ "%.3f"|format(e.median) if e.median is not none else "–" }} m</td>
+    <td class="num">{{ "%.3f"|format(e.max) if e.max is not none else "–" }} m</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="note">A report is correct within {{ match_limit }} m of a true object of its class, each matched once. Horizontal error only.
+{% for e in evaluation if e.missed %}Missed {{ e.cls }}: {{ e.missed|join(", ") }}. {% endfor %}</p>
+{% endif %}
+
+<h2>Map quality</h2>
+<table>
+  <tr><td>Photos in the map</td><td class="num">{{ alignment.photos_registered }} of {{ alignment.photos_used }}</td></tr>
+  <tr><td>3D points</td><td class="num">{{ "{:,}".format(alignment.points) }}</td></tr>
+  <tr><td>Mean reprojection error</td><td class="num">{{ "%.2f"|format(alignment.reprojection_px) }} px</td></tr>
+  <tr><td>Cameras fitted / left out of the alignment</td><td class="num">{{ alignment.cameras_fitted }} / {{ alignment.cameras_misplaced }}</td></tr>
+  <tr><td>Fitted cameras to EKF2, median / p95</td><td class="num">{{ "%.3f"|format(alignment.cameras_to_ekf.median) }} / {{ "%.3f"|format(alignment.cameras_to_ekf.p95) }} m</td></tr>
+  {% if alignment.cameras_to_truth is defined %}
+  <tr><td>Fitted cameras to the true positions (not used in the fit), median / p95</td><td class="num">{{ "%.3f"|format(alignment.cameras_to_truth.median) }} / {{ "%.3f"|format(alignment.cameras_to_truth.p95) }} m</td></tr>
+  {% endif %}
+  {% if alignment.ground_height is defined %}
+  <tr><td>Open ground off the plane d = 0, median</td><td class="num">{{ "%.3f"|format(alignment.ground_height.median) }} m</td></tr>
+  {% for r in alignment.roofs %}
+  <tr><td>Roof of {{ r.name }} (top 1 % of its points)</td><td class="num">{{ "%.2f"|format(r.top) }} m (true {{ "%.2f"|format(r.true) }} m)</td></tr>
+  {% endfor %}
+  {% endif %}
+</table>
+<p class="note">EKF2 positions chose which photo pairs were compared and rejected pairs that disagreed with them by more than 5 m; they did not enter the reconstruction itself.</p>
+</main>
+</body>
+</html>
