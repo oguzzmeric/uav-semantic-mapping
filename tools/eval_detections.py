@@ -2,7 +2,7 @@
 
     .venv/bin/python tools/eval_detections.py data/export/<name> --run full_frame
 
-Simulation only. Rules (PROGRESS.md, 2026-11-04): a box is correct at IoU >= 0.5; people and
+Simulation, and VisDrone through tools/visdrone_coco.py. Rules (PROGRESS.md, 2026-11-04): a box is correct at IoU >= 0.5; people and
 vehicles are reported separately; boxes matching an ignored object (cut by the frame edge or
 hidden by a building) count neither way; a box on anything else, buildings included, is a false
 alarm. Matching and AP are pycocotools'. Object-level recall needs geolocation and comes later.
@@ -68,9 +68,10 @@ def main():
             for gt_id, skip in zip(e['gtIds'], e['gtIgnore']):
                 if not skip:
                     total += 1
-                    obj = truth.anns[gt_id]['object']
-                    frames_counted[obj] += 1
-                    frames_found[obj] += gt_id in found
+                    obj = truth.anns[gt_id].get('object')  # simulation only
+                    if obj:
+                        frames_counted[obj] += 1
+                        frames_found[obj] += gt_id in found
         fn = total - tp
         print(f'{name:8s} {total:6d} {tp:6d} {fp:6d} {fn:6d} {tp / max(tp + fp, 1):6.3f} '
               f'{tp / max(total, 1):6.3f} {ap.stats[1]:6.3f} {ap.stats[0]:8.3f}')
@@ -78,6 +79,8 @@ def main():
         per_object[name] = [(o, frames_found[o], frames_counted[o]) for o in
                             sorted(rates, key=rates.get)]
 
+    if not any(per_object.values()):
+        return
     print('\nFrames each object was found in, lowest first (found / counted):')
     for name, rows in per_object.items():
         print(f'  {name}: ' + ', '.join(f'{o.split("_")[1]} {f}/{c}' for o, f, c in rows))
