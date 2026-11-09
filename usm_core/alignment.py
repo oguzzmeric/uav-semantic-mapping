@@ -31,3 +31,19 @@ def umeyama(source, target) -> Sim3:
     rotation = u @ sign @ vt
     scale = float(np.trace(np.diag(d) @ sign) / (a * a).sum(axis=1).mean())
     return Sim3(scale, rotation, target_mean - scale * rotation @ source_mean)
+
+
+def robust_umeyama(source, target, rounds: int = 6, spread: float = 3.0,
+                   floor: float = 0.5) -> tuple[Sim3, np.ndarray]:
+    """Umeyama that ignores outliers; returns the fit and a mask of the points it kept.
+
+    Least squares lets a few wrong points pull the whole fit, so it is repeated on the points
+    within `spread` times the median distance of the last fit (never under `floor`, in target units).
+    """
+    source, target = np.asarray(source, float), np.asarray(target, float)
+    keep = np.ones(len(source), bool)
+    for _ in range(rounds):
+        sim = umeyama(source[keep], target[keep])
+        distances = np.linalg.norm(sim.apply(source) - target, axis=1)
+        keep = distances < max(spread * np.median(distances), floor)
+    return sim, keep

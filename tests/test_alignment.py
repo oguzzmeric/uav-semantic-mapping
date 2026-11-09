@@ -4,7 +4,7 @@ import math
 import numpy as np
 import pytest
 
-from usm_core.alignment import umeyama
+from usm_core.alignment import robust_umeyama, umeyama
 
 POINTS = np.array([[0, 0, 0], [10, 0, 0], [0, 5, 0], [0, 0, 3], [7, 2, 1], [-4, 6, 2]], float)
 
@@ -48,3 +48,16 @@ def test_noise_averages_out():
     sim = umeyama(source, target)
     assert sim.scale == pytest.approx(1.5, abs=1e-3)
     assert sim.translation == pytest.approx((1, 2, 3), abs=0.05)
+
+
+def test_robust_fit_ignores_a_few_wrong_points():
+    rng = np.random.default_rng(1)
+    source = rng.uniform(-30, 30, (200, 3))
+    target = 2.0 * source + [5, -5, 1] + rng.normal(0, 0.05, source.shape)
+    target[:8] += [40, -30, 0]  # a few points are far off
+    assert umeyama(source, target).translation != pytest.approx((5, -5, 1), abs=0.1)
+    sim, keep = robust_umeyama(source, target)
+    assert sim.scale == pytest.approx(2.0, abs=0.01)
+    assert sim.translation == pytest.approx((5, -5, 1), abs=0.1)
+    assert not keep[:8].any()
+    assert keep[8:].mean() > 0.95

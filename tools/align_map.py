@@ -2,8 +2,9 @@
 
     .venv/bin/python tools/align_map.py data/export/<name> sim/gz_worlds/village_objects.csv [--map map]
 
-Fits map cameras to EKF2 camera positions (Sim(3), Umeyama), then checks the map against what it
-did not use: the true camera positions, the ground plane and the true roof heights. Writes
+Fits map cameras to EKF2 camera positions (Sim(3), Umeyama, ignoring cameras the map misplaced),
+then checks the map against what it did not use: the true camera positions, the ground plane and
+the true roof heights. Writes
 data/export/<name>/<map>/aligned.npz (world points, their colours, the transform).
 """
 import argparse
@@ -15,7 +16,7 @@ import pycolmap
 
 from frames import read_frames
 from geolocate import camera_position
-from usm_core.alignment import umeyama
+from usm_core.alignment import robust_umeyama
 
 OPEN_GROUND_CLEARANCE = 3.0  # m from any object's footprint centre beyond its own size
 
@@ -45,13 +46,16 @@ def main():
     estimated = np.array([camera_position(rows[i.name], 'ekf') for i in images])
     true = np.array([camera_position(rows[i.name], 'true') for i in images])
 
-    sim = umeyama(centres, estimated)
+    sim, keep = robust_umeyama(centres, estimated)
     aligned = sim.apply(centres)
-    print(f'scale {sim.scale:.4f} m per map unit')
-    print(f'cameras to EKF2 (fitted):        {summary(np.linalg.norm(aligned - estimated, axis=1))}')
-    print(f'cameras to the truth (not used): {summary(np.linalg.norm(aligned - true, axis=1))}')
-    print(f'  of which horizontal:           {summary(np.linalg.norm((aligned - true)[:, :2], axis=1))}')
-    print(f'  of which vertical:             {summary(np.abs((aligned - true)[:, 2]))}')
+    print(f'scale {sim.scale:.4f} m per map unit; {keep.sum()} cameras fitted, {(~keep).sum()} misplaced')
+    print(f'cameras to EKF2 (fitted):        {summary(np.linalg.norm((aligned - estimated)[keep], axis=1))}')
+    print(f'cameras to the truth (not used): {summary(np.linalg.norm((aligned - true)[keep], axis=1))}')
+    print(f'  of which horizontal:           {summary(np.linalg.norm((aligned - true)[keep, :2], axis=1))}')
+    print(f'  of which vertical:             {summary(np.abs((aligned - true)[keep, 2]))}')
+    if (~keep).any():
+        off = np.linalg.norm((aligned - true)[~keep], axis=1)
+        print(f'misplaced cameras to the truth:  {summary(off)}')
 
     points = np.array([p.xyz for p in model.points3D.values()])
     colors = np.array([p.color for p in model.points3D.values()])
@@ -77,7 +81,8 @@ def main():
             top = np.percentile(-d[inside], 99)
             print(f"  {o['name']}: {inside.sum()} points, top {top:.2f} m (true {float(o['height']):.2f} m)")
 
-    np.savez_compressed(folder / 'aligned.npz', points=world, colors=colors, scale=sim.scale,
+    np.savez_compressed(folder / 'aligned.npz', points=world, colors=colors, cameras=aligned[keep],
+                        scale=sim.scale,
                         rotation=sim.rotation, translation=sim.translation)
     print(f'-> {folder / "aligned.npz"}')
 
