@@ -4,6 +4,51 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-11-09 — VisDrone, `seed 2` köyü, otomatik uçuş
+
+**Yapıldı**
+- VisDrone ölçümü: `tools/visdrone_coco.py` (sınıf eşlemesi: insan ← pedestrian, people; araç ← car, van, truck, bus, motor; bicycle, tricycle, awning-tricycle, ignored region, others sayılmaz; ölçümden önce onaylandı). Veri dosyalarını okuyan komutlar `python -I` ile çalıştırıldı.
+- `make_village.py --name`: her köy kendi adıyla (`village` = seed 1, `village_seed2` = seed 2); seed 1 dosyaları değişmedi.
+- `tools/fly_survey.py`: arayüzsüz uçuş baştan sona (simülasyon, Agent, köprü, kayıt, görev, kapatma, dışa aktarma); açık simülasyon varsa başlamaz.
+
+**Ölçüldü**
+- **VisDrone (gerçek veri, tiling'siz, IoU ≥ 0,5, skor ≥ 0,25):**
+
+| Set | Sınıf | Gerçek | P | R | AP50 | AP50-95 |
+|---|---|---|---|---|---|---|
+| test-dev (1610) | insan | 27 382 | 0,687 | 0,262 | 0,301 | 0,125 |
+| test-dev | araç | 45 289 | 0,850 | 0,577 | 0,646 | 0,411 |
+| train (6471) | insan | 106 396 | 0,722 | 0,380 | 0,423 | 0,189 |
+| train | araç | 218 270 | 0,856 | 0,548 | 0,616 | 0,395 |
+
+  Gerçek veride simülasyondan çok daha zayıf, özellikle insan recall'u. Ezber kontrolü karışık: insanda train AP50 +0,12, araçta −0,03 → zayıf işaret, kanıt değil. Olası sebepler (ölçülmedi): eğik açı, kalabalık ve çok küçük insanlar, "people" sınıfı.
+- **`seed 2` test uçuşu** (30 m, arayüzsüz): tarama 174,5 s, görev 234 s, 2454 kare (kayıt 2,0 GB). EKF2 yatay medyan 0,065 m (p95 0,130), kayma 0 ms, şeritte yaw maks 1,41°.
+
+**Resmi sonuçlar (simülasyonda, `seed 2`, donmuş ayarlar, tiling'siz, EKF2):**
+
+| | Sınıf | Değer |
+|---|---|---|
+| Kare düzeyi | insan | P 0,952, R 0,806, AP50 0,932, AP50-95 0,550 (2445 kutu) |
+| Kare düzeyi | araç | P 0,976, R 0,974, AP50 0,970, AP50-95 0,784 (1627 kutu) |
+| Kutu başına konum (model) | insan / araç | medyan 0,090 / 0,138 m, p95 0,204 / 2,034 m |
+| **Nesne düzeyi** | **insan** | **recall %100 (20/20), precision %95,2 (21 rapor), hata medyan 0,061, ort. 0,066, maks 0,136 m** |
+| **Nesne düzeyi** | **araç** | **recall %100 (12/12), precision %92,3 (13 rapor), hata medyan 0,065, ort. 0,068, maks 0,132 m** |
+| Nesne düzeyi, gerçek kutular | insan / araç | 20/20, 12/12, hata medyan 0,063 / 0,053 m |
+| **Harita** | | 303/303 fotoğraf, 313 432 nokta, 0,13 px; 568 çift atıldı, **sapan kamera 0**; kameralar gerçek konuma medyan **0,047** m (p95 0,076); açık zemin \|d\| medyan 0,058 m; ev tepeleri 7,67 / 7,19 / 9,78 m (gerçek 7,69 / 7,23 / 9,17) |
+
+- Yanlış raporlar: 1 insan (5 karede, n 23,6 e 14,8), 1 araç (10 karede, n −4,2 e 15,3); ne olduklarına bakılmadı.
+- `person_07` 112 karenin yalnızca 10'unda bulundu (%9), nesne düzeyinde yine bulundu; sebebi incelenmedi.
+- Hedefler (recall ≥ %80, hata ≤ 2 m) bu kolay köyde rahat aşıldı. Gerçek veride (VisDrone) tespitin çok daha zayıf olduğu birlikte raporlanacak.
+
+**Test uçuşu (`seed 2`) öncesi donan ayarlar** (bu uçuşun sonuçları görülmeden yazıldı; sonradan değişirse kayda geçer):
+- Tespit: tam kare (tiling yok), skor ≥ 0,25, NMS IoU 0,7, imgsz 1280, fp32.
+- Konumlandırma: kutu merkezi, sınıf yüksekliği 1,8 m (yarısındaki düzlem), EKF2 pozu.
+- Birleştirme: uçuş sırasına göre, yarıçap 2 m, en az 5 kare, kadraj kenarına değen kutular dışarıda.
+- Harita: 2 m'de bir fotoğraf, en fazla 30 komşu / 25 m, EKF2'den > 5 m sapan çiftler atılır, sağlam Sim(3) (medyanın 3 katı).
+- Ölçüm: kare düzeyinde IoU ≥ 0,5 (pycocotools), nesne düzeyinde ≤ 2 m bire bir eşleşme.
+
+---
+
 ## 2026-11-05 — Konumlandırma, birleştirme, nesne düzeyi ölçüm, COLMAP başlangıcı (Hafta 3)
 
 **Yapıldı**
