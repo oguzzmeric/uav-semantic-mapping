@@ -10,9 +10,12 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 - Gerçek dünya bölümü kararı: AU-AIR kullanılamıyor (kare başına kamera açısı, iç parametreler ve gerçek konumlar yok; lisans doğrulanamadı). Modelin gerçek videolardaki tespiti zaten daha önce denendiği için ayrı bir gerçek veri bölümü yapılmayacak; demo videosu yalnızca simülasyon, gerçek veri ölçümü VisDrone.
 - README son okuması yapıldı. Modelin eğitildiği yarışmanın adı README'den ve koddan çıkarıldı; ağırlık dosyası `models/yolo11l_nadir.pt` oldu.
 - CLAUDE.md (çalışma talimatları) artık yalnızca yerelde (`.gitignore`); README ve kod ona atıf yapmıyor. PROGRESS.md karar kaydı olarak repoda kalıyor.
+- Repo herkese açıldı (geçmiş olduğu gibi bırakıldı; geçmişte ağırlık, veri, anahtar yok, en büyük dosya 1 MB). Eksik `LICENSE` eklendi (AGPL-3.0, gnu.org metni); GitHub lisansı tanıyor.
+- Demo videosu (1:25, yalnızca simülasyon): https://youtu.be/k2LMVuSqJFM. Arayüzlü uçuş + canlı tespit OBS ile tek çekim (bag kaydı yok), harita ve rapor `village_seed2_alt30` test uçuşundan; montaj Kdenlive. Sıra: harita (başlıkla) → kalkış (2×) → tarama ve dönüş (4×) → rapor → kapanış (konum hatası + repo linki).
+- Video çekimindeki canlı ölçüm (arayüzlü Gazebo + OBS, `data/live/demo_video.csv`): 1,80 Hz, gecikme medyanı 564 ms, VRAM tepe 2,66 GB (OBS 159 MB). Hız uçuş boyunca 2,06 → 1,57 Hz düştü; GPU 83–86 °C, örneklerin çoğunda ısıl kısma. README'deki resmi canlı sayılar (OBS'siz) değişmedi.
 
 **Sıradaki adım**
-- Repoyu herkese açmak (Oğuz), OBS kurulumu, demo videosu (5 sahne, yalnızca simülasyon), README'ye video bağlantısı.
+- GitHub About açıklaması + konu etiketleri, repoyu profilde sabitleme, CV ve LinkedIn profili, LinkedIn gönderisi.
 
 ---
 

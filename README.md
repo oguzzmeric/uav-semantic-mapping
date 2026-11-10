@@ -9,6 +9,9 @@ measured against ground truth, and the position error is broken down into its so
 Built in simulation (PX4 + Gazebo + ROS 2) with a YOLO11l detector I trained on nadir drone
 imagery, and checked on real drone imagery (VisDrone).
 
+**Demo video (1:25):** [youtu.be/k2LMVuSqJFM](https://youtu.be/k2LMVuSqJFM). The 3D map and the
+report come from the recorded test flight; the flight in the middle is live, partly at 4× speed.
+
 ![Top-down view of the 3D map built from the drone's photos, with the reported people and vehicles](docs/images/map_seed2_alt30.png)
 
 *Top-down view of the sparse 3D map built from the survey photos and aligned to the world.
