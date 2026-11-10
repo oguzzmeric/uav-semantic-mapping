@@ -104,7 +104,7 @@ class LiveDetector(Node):
 
     def __init__(self):
         super().__init__('live_detector')
-        weights = self.declare_parameter('weights', 'models/teknofest_yolo11l_nadir.pt').value
+        weights = self.declare_parameter('weights', 'models/yolo11l_nadir.pt').value
         csv_path = Path(self.declare_parameter(
             'csv', f'data/live/{datetime.now():%Y%m%d_%H%M%S}.csv').value)
         self._use_viewer = self.declare_parameter('rerun', True).value

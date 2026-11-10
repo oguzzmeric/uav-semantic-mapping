@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-MATCH_LIMIT = 2.0  # m, CLAUDE.md section 5
+MATCH_LIMIT = 2.0  # m, fixed before any measurement
 
 
 @dataclass(frozen=True)

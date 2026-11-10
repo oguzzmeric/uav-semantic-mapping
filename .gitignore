@@ -37,3 +37,6 @@ log/
 .vscode/
 .idea/
 .DS_Store
+
+# Local working notes (not published)
+CLAUDE.md

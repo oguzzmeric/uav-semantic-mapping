@@ -6,8 +6,8 @@ An autonomous drone that surveys an area, finds **people and vehicles**, works o
 are on the ground, builds a 3D map from its own photos and puts the objects on it. Every step is
 measured against ground truth, and the position error is broken down into its sources.
 
-Built in simulation (PX4 + Gazebo + ROS 2) with a YOLO11l detector I trained for TEKNOFEST 2025,
-and checked on real drone imagery (VisDrone).
+Built in simulation (PX4 + Gazebo + ROS 2) with a YOLO11l detector I trained on nadir drone
+imagery, and checked on real drone imagery (VisDrone).
 
 ![Top-down view of the 3D map built from the drone's photos, with the reported people and vehicles](docs/images/map_seed2_alt30.png)
 
@@ -178,8 +178,8 @@ images were seen in training, not evidence.
 
 ## Running it
 
-Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic, PX4 v1.17.0 SITL, Micro XRCE-DDS Agent v2.4.3. The
-setup, pitfalls and every command are in [CLAUDE.md](CLAUDE.md) (in Turkish); in short:
+Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic, PX4 v1.17.0 SITL, Micro XRCE-DDS Agent v2.4.3. In
+short:
 
 ```bash
 setup/px4_overlay.sh && setup/fetch_textures.sh          # once
@@ -197,8 +197,7 @@ E=data/export/village_seed2_alt30; O=sim/gz_worlds/village_seed2_objects.csv
 .venv/bin/python tools/report.py $E --truth $O              # -> $E/report.html
 ```
 
-**Model weights are not included.** The detector was trained on TEKNOFEST competition data whose
-terms are unclear. Put your own YOLO weights at `models/teknofest_yolo11l_nadir.pt`, or use an
+**Model weights are not included.** Put your own YOLO weights at `models/yolo11l_nadir.pt`, or use an
 open YOLO11 model and adapt the class mapping in `usm_core/detection.py`.
 
 The core math (`usm_core/`) is plain Python with no ROS dependency; its 94 tests run on every push.

@@ -7,7 +7,7 @@ from usm_core.detection import (
     CLASS_MAP, PERSON, VEHICLE, Detection, iou, merge_tiles, project_class, tile_offsets,
 )
 
-# Class names stored in models/teknofest_yolo11l_nadir.pt, in index order.
+# Class names stored in models/yolo11l_nadir.pt, in index order.
 MODEL_CLASSES = ['UAP', 'INSAN', 'MOTOR', 'ARABA', 'KAMYON', 'OTOBUS', 'UAI', 'MAKINE', 'GEMI', 'TREN']
 
 

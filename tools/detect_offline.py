@@ -18,7 +18,7 @@ import numpy as np
 
 from usm_core.detection import PERSON, VEHICLE, Detector, Settings
 
-WEIGHTS = 'models/teknofest_yolo11l_nadir.pt'
+WEIGHTS = 'models/yolo11l_nadir.pt'
 SCORE_FLOOR = 0.001  # the usual floor for computing AP (also the default of Ultralytics' val)
 CATEGORY_IDS = {PERSON: 1, VEHICLE: 2}
 

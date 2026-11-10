@@ -13,7 +13,7 @@ import numpy as np
 PERSON = 'person'
 VEHICLE = 'vehicle'
 
-# The model's 10 classes (TEKNOFEST 2025) -> project classes. Fixed before any measurement.
+# The model's 10 classes -> project classes. Fixed before any measurement.
 # Not mapped: UAP and UAI (landing pads), MAKINE (machinery), GEMI (ship), TREN (train).
 CLASS_MAP = {
     'INSAN': PERSON,

@@ -13,7 +13,7 @@ set -eo pipefail  # no -u: the ROS setup script reads unset variables
 PX4_DIR="${PX4_DIR:-$HOME/PX4-Autopilot}"
 rm -f "$PX4_DIR"/build/px4_sitl_default/rootfs/parameters*.bson
 
-source /opt/ros/jazzy/setup.bash  # PX4 must run against ROS's Gazebo (see CLAUDE.md)
+source /opt/ros/jazzy/setup.bash  # PX4 must run against ROS's Gazebo (8.10), the one ros_gz_bridge is built for
 source "$HOME/px4-venv/bin/activate"
 cd "$PX4_DIR"
 # Render Gazebo on the NVIDIA GPU (PRIME on-demand)

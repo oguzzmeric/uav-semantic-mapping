@@ -4,6 +4,18 @@ Her oturum sonunda en üste yeni bir kayıt eklenir.
 
 ---
 
+## 2026-11-10 — Yayın hazırlığı
+
+**Yapıldı**
+- Gerçek dünya bölümü kararı: AU-AIR kullanılamıyor (kare başına kamera açısı, iç parametreler ve gerçek konumlar yok; lisans doğrulanamadı). Modelin gerçek videolardaki tespiti zaten daha önce denendiği için ayrı bir gerçek veri bölümü yapılmayacak; demo videosu yalnızca simülasyon, gerçek veri ölçümü VisDrone.
+- README son okuması yapıldı. Modelin eğitildiği yarışmanın adı README'den ve koddan çıkarıldı; ağırlık dosyası `models/yolo11l_nadir.pt` oldu.
+- CLAUDE.md (çalışma talimatları) artık yalnızca yerelde (`.gitignore`); README ve kod ona atıf yapmıyor. PROGRESS.md karar kaydı olarak repoda kalıyor.
+
+**Sıradaki adım**
+- Repoyu herkese açmak (Oğuz), OBS kurulumu, demo videosu (5 sahne, yalnızca simülasyon), README'ye video bağlantısı.
+
+---
+
 ## 2026-11-09 — VisDrone, `seed 2` köyü, otomatik uçuş
 
 **Yapıldı**
@@ -89,7 +101,7 @@ Hata ayrıştırma, insan, kutu başına medyan / nesne düzeyi medyan (m):
 
 **Gün sonu (2026-11-09)**
 - CI: `.github/workflows/tests.yml`, her push'ta çekirdek testleri (ROS ve torch olmadan). Çekirdek NumPy ve SciPy'yi kullanıyordu ama bağımlılık olarak yazmıyordu (başka gruplar getirdiği için fark edilmemişti) → `dependencies` içine alındı. Temiz ortamda 94 test geçti; GitHub'daki ilk çalıştırmanın sonucu repo gizli olduğu için buradan görülmedi.
-- README (İngilizce): sonuçlar, mimari şeması (mermaid), hata ayrıştırma, hassasiyet, irtifa, canlı sistem, VisDrone, sınırlar, çalıştırma, lisanslar. Görseller simülasyondan (`docs/images/`); VisDrone veya TEKNOFEST görüntüsü yok. Yazarken ölçülenden fazlasını söyleyen üç cümle düzeltildi. Oğuz görselleri ve şemayı beğendi, yarın yeniden okuyacak.
+- README (İngilizce): sonuçlar, mimari şeması (mermaid), hata ayrıştırma, hassasiyet, irtifa, canlı sistem, VisDrone, sınırlar, çalıştırma, lisanslar. Görseller simülasyondan (`docs/images/`); VisDrone görüntüsü yok. Yazarken ölçülenden fazlasını söyleyen üç cümle düzeltildi. Oğuz görselleri ve şemayı beğendi, yarın yeniden okuyacak.
 - E-posta: `package.xml` ve eski commit'lerdeki adres kalıyor; bu repoda bundan sonraki commit'ler GitHub'ın gizli adresiyle (`35642534+oguzzmeric@users.noreply.github.com`, yalnızca bu repo).
 - Hedef artık mümkün olduğunca erken bitirmek: yeni özellik yok.
 
@@ -533,7 +545,7 @@ Nesne düzeyi (EKF2, yarıçap 2 m, en az 5 kare):
 - Proje yeniden çerçevelendi: arama-kurtarma çıktı, **otonom semantik haritalama** (insan + araç katmanı) oldu. Repo adı: `uav-semantic-mapping`.
 - Kapsam "A + B" olarak kesinleşti: ölçüm odaklı çekirdek + canlı tespit/konum (TensorRT, Rerun). C++ konumlandırma ve ByteTrack 20 Kasım sonrasına.
 - Model incelendi (dosya çalıştırılmadan, metadata okundu): standart `yolo11l.yaml`, imgsz 1280, 10 sınıf (UAP, INSAN, MOTOR, ARABA, KAMYON, OTOBUS, UAI, MAKINE, GEMI, TREN), Ultralytics 8.3.155, nadir drone görüntüleriyle eğitilmiş. "Değiştirilmiş mimari" iddiası kaldırıldı.
-- Model `models/teknofest_yolo11l_nadir.pt` olarak taşındı; `.gitignore` oluşturuldu (ağırlıklar, `.venv`, veri, kayıtlar, COLMAP çıktıları, ROS build).
+- Model ağırlığı `models/` altına taşındı; `.gitignore` oluşturuldu (ağırlıklar, `.venv`, veri, kayıtlar, COLMAP çıktıları, ROS build).
 - CLAUDE.md bu kararlara göre yeniden yazıldı.
 
 **Kararlar**
